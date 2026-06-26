@@ -69,6 +69,7 @@ export interface HaloRoleList {
 export interface RoleOption {
   label: string
   value: string
+  displayName: string
 }
 
 export interface SsoUserBinding {
@@ -300,12 +301,14 @@ export const ssoRoleMappingApi = {
 function toRoleOption(value: string, displayName?: string) {
   const normalizedValue = value.trim()
   const normalizedDisplayName = displayName?.trim()
+  const resolvedDisplayName = normalizedDisplayName || normalizedValue
   return {
     label:
       normalizedDisplayName && normalizedDisplayName !== normalizedValue
         ? `${normalizedDisplayName}（${normalizedValue}）`
         : normalizedValue,
     value: normalizedValue,
+    displayName: resolvedDisplayName,
   }
 }
 

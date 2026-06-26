@@ -3,18 +3,21 @@ package site.muyin.sso;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.index.IndexSpecs;
 import run.halo.app.extension.index.ValueIndexSpec;
 import run.halo.app.plugin.PluginContext;
+import site.muyin.sso.authprovider.SsoAuthProviderMetadataSyncService;
 import site.muyin.sso.scheme.SsoAuditLog;
 import site.muyin.sso.scheme.SsoAuditLogCleanupRecord;
 import site.muyin.sso.scheme.SsoAuthorizationCode;
@@ -27,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SsoPluginTest {
@@ -37,8 +41,16 @@ class SsoPluginTest {
     @Mock
     SchemeManager schemeManager;
 
+    @Mock
+    SsoAuthProviderMetadataSyncService authProviderMetadataSyncService;
+
     @InjectMocks
     SsoPlugin plugin;
+
+    @BeforeEach
+    void setUp() {
+        when(authProviderMetadataSyncService.syncOnceWithRX()).thenReturn(Mono.empty());
+    }
 
     @Test
     void registersAndUnregistersSsoSchemes() {
@@ -51,6 +63,7 @@ class SsoPluginTest {
         verify(schemeManager).register(eq(SsoRoleMapping.class), any());
         verify(schemeManager).register(eq(SsoAuditLog.class), any());
         verify(schemeManager).register(eq(SsoAuditLogCleanupRecord.class), any());
+        verify(authProviderMetadataSyncService).syncOnceWithRX();
 
         verify(schemeManager, times(6)).unregister(any(Scheme.class));
     }

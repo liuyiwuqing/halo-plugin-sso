@@ -17,6 +17,8 @@ public final class OAuthEndpointPaths {
 
     public static final String ROLES_LIST = PUBLIC_API_BASE + "/roles/list";
 
+    public static final String METADATA = PUBLIC_API_BASE + "/metadata";
+
     public static final String CLIENT_LOGIN = PUBLIC_API_BASE + "/client/login";
 
     public static final String CLIENT_CALLBACK = PUBLIC_API_BASE + "/client/callback";

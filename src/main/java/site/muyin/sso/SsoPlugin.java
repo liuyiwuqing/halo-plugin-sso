@@ -2,11 +2,13 @@ package site.muyin.sso;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.index.IndexSpecs;
 import run.halo.app.plugin.BasePlugin;
 import run.halo.app.plugin.PluginContext;
+import site.muyin.sso.authprovider.SsoAuthProviderMetadataSyncService;
 import site.muyin.sso.scheme.SsoAuditLog;
 import site.muyin.sso.scheme.SsoAuditLogCleanupRecord;
 import site.muyin.sso.scheme.SsoAuthorizationCode;
@@ -27,15 +29,19 @@ import site.muyin.sso.scheme.SsoUserBinding;
 public class SsoPlugin extends BasePlugin {
 
     private final SchemeManager schemeManager;
+    private final SsoAuthProviderMetadataSyncService authProviderMetadataSyncService;
 
-    public SsoPlugin(PluginContext pluginContext, SchemeManager schemeManager) {
+    public SsoPlugin(PluginContext pluginContext, SchemeManager schemeManager,
+        SsoAuthProviderMetadataSyncService authProviderMetadataSyncService) {
         super(pluginContext);
         this.schemeManager = schemeManager;
+        this.authProviderMetadataSyncService = authProviderMetadataSyncService;
     }
 
     @Override
     public void start() {
         registerSchemes();
+        syncAuthProviderMetadata();
         log.info("SSO plugin started.");
     }
 
@@ -132,5 +138,13 @@ public class SsoPlugin extends BasePlugin {
         schemeManager.unregister(Scheme.buildFromType(SsoRoleMapping.class));
         schemeManager.unregister(Scheme.buildFromType(SsoAuditLog.class));
         schemeManager.unregister(Scheme.buildFromType(SsoAuditLogCleanupRecord.class));
+    }
+
+    private void syncAuthProviderMetadata() {
+        authProviderMetadataSyncService.syncOnceWithRX()
+            .doOnError(error -> log.warn("Failed to sync SSO AuthProvider metadata on start.",
+                error))
+            .onErrorResume(error -> Mono.empty())
+            .subscribe();
     }
 }

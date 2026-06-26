@@ -1,5 +1,5 @@
 import { definePlugin } from '@halo-dev/ui-shared'
-import { IconPlug } from '@halo-dev/components'
+import SsoConnectIcon from '~icons/ri/shield-keyhole-line'
 import { markRaw } from 'vue'
 
 export default definePlugin({
@@ -10,7 +10,7 @@ export default definePlugin({
       route: {
         path: '/sso',
         name: 'SsoConsole',
-        component: () => import(/* webpackChunkName: "HomeView" */ './views/HomeView.vue'),
+        component: () => import('./views/SsoConsole.vue'),
         meta: {
           title: '统一身份认证',
           searchable: true,
@@ -18,7 +18,7 @@ export default definePlugin({
           menu: {
             name: '统一身份认证',
             group: '系统工具',
-            icon: markRaw(IconPlug),
+            icon: markRaw(SsoConnectIcon),
             priority: 0,
           },
         },

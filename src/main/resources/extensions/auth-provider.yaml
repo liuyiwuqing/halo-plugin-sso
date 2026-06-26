@@ -9,5 +9,6 @@ spec:
   description: 使用身份中心账号登录当前站点。
   logo: /plugins/sso/assets/static/logo.svg
   website: https://blog.muyin.site
+  helpPage: https://github.com/liuyiwuqing/halo-plugin-sso#readme
   authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
   authType: oauth2

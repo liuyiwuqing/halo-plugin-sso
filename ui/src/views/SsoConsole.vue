@@ -685,9 +685,14 @@ function withCurrentRoleOption(options: RoleOption[], currentRole: string) {
     {
       label: normalizedRole,
       value: normalizedRole,
+      displayName: normalizedRole,
     },
     ...options,
   ]
+}
+
+function roleDisplayName(options: RoleOption[], role: string) {
+  return options.find((option) => option.value === role)?.displayName || role
 }
 
 function formatDate(value?: string) {
@@ -980,8 +985,16 @@ onMounted(async () => {
           >
             <div class="sso-admin-role__main">
               <div>
-                <strong>{{ mapping.centerRole }}</strong>
-                <span>映射到 {{ mapping.localRole }}</span>
+                <strong class="sso-admin-role__title">
+                  <span>{{ roleDisplayName(centerRoleOptions, mapping.centerRole) }}</span>
+                  <span class="sso-admin-role__arrow">映射到</span>
+                  <span>{{ roleDisplayName(localRoleOptions, mapping.localRole) }}</span>
+                </strong>
+                <span class="sso-admin-role__codes">
+                  <code>{{ mapping.centerRole }}</code>
+                  <span>→</span>
+                  <code>{{ mapping.localRole }}</code>
+                </span>
               </div>
               <span class="sso-admin-badge" :class="{ 'is-disabled': mapping.enabled === false }">
                 {{ mapping.enabled === false ? '停用' : '启用' }}
@@ -1923,6 +1936,37 @@ onMounted(async () => {
     color: #64748b;
     font-size: 13px;
     line-height: 20px;
+  }
+}
+
+.sso-admin-role__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sso-admin-role__arrow {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sso-admin-role__codes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  code {
+    max-width: 180px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #eef2f7;
+    color: #334155;
+    font-size: 12px;
+    line-height: 18px;
+    overflow-wrap: anywhere;
   }
 }
 

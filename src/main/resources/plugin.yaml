@@ -14,11 +14,11 @@ spec:
   logo: logo.svg
   settingName: sso-settings
   configMapName: sso-configmap
-  homepage: https://blog.muyin.site
-  repo: https://blog.muyin.site
-  issues: https://blog.muyin.site
+  homepage: https://github.com/liuyiwuqing/halo-plugin-sso#readme
+  repo: https://github.com/liuyiwuqing/halo-plugin-sso
+  issues: https://github.com/liuyiwuqing/halo-plugin-sso/issues
   displayName: "统一身份认证"
   description: "为多个 Halo 站点提供中心身份站、单点登录、用户绑定和角色映射能力。"
   license:
     - name: "GPL-3.0"
-      url: "https://www.gnu.org/licenses/gpl-3.0.html"
+      url: "https://github.com/liuyiwuqing/halo-plugin-sso/blob/main/LICENSE"

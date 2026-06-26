@@ -28,7 +28,9 @@ import run.halo.app.plugin.ReactiveSettingFetcher;
 import site.muyin.sso.core.SsoConstants;
 import site.muyin.sso.endpoint.routes.ClientLoginRoutes;
 import site.muyin.sso.endpoint.routes.OAuthRoutes;
+import site.muyin.sso.model.SsoAuthProviderMetadata;
 import site.muyin.sso.model.SsoPublicRole;
+import site.muyin.sso.service.SsoCenterMetadataService;
 import site.muyin.sso.setting.SsoGeneralSetting;
 
 @Component
@@ -48,10 +50,16 @@ public class SsoPublicEndpoint implements CustomEndpoint {
     private final ClientLoginRoutes clientLoginRoutes;
     private final ReactiveExtensionClient reactiveExtensionClient;
     private final ReactiveSettingFetcher settingFetcher;
+    private final SsoCenterMetadataService centerMetadataService;
 
     @Override
     public RouterFunction<ServerResponse> endpoint() {
         return SpringdocRouteBuilder.route()
+            .GET("/metadata", this::metadata, builder -> builder
+                .operationId("getSsoAuthProviderMetadata")
+                .description("获取身份中心认证提供者元信息")
+                .tag(PUBLIC_TAG)
+                .response(responseBuilder().implementation(SsoAuthProviderMetadata.class)))
             .GET("/roles/list", this::listRoles, builder -> builder
                 .operationId("listPublicSsoRoles")
                 .description("获取中心身份站角色列表")
@@ -65,6 +73,12 @@ public class SsoPublicEndpoint implements CustomEndpoint {
     @Override
     public GroupVersion groupVersion() {
         return GroupVersion.parseAPIVersion(PUBLIC_GROUP_VERSION);
+    }
+
+    private Mono<ServerResponse> metadata(ServerRequest request) {
+        return centerModeSetting()
+            .then(centerMetadataService.getMetadata(RequestBaseUrlResolver.resolve(request)))
+            .flatMap(metadata -> ServerResponse.ok().bodyValue(metadata));
     }
 
     private Mono<ServerResponse> listRoles(ServerRequest request) {

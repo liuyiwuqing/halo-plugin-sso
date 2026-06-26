@@ -68,6 +68,13 @@ rules:
   - apiGroups:
       - public.sso.muyin.site
     resources:
+      - metadata
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
       - roles
     resourceNames:
       - list
