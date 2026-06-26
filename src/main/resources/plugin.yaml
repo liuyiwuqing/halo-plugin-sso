@@ -1,0 +1,24 @@
+# Refer https://docs.halo.run/developer-guide/plugin/basics/manifest
+
+apiVersion: plugin.halo.run/v1alpha1
+kind: Plugin
+metadata:
+  # The name defines how the plugin is invoked, A unique name
+  name: sso
+spec:
+  enabled: true
+  requires: ">=2.25.0"
+  author:
+    name: Lywq
+    website: https://blog.muyin.site
+  logo: logo.svg
+  settingName: sso-settings
+  configMapName: sso-configmap
+  homepage: https://blog.muyin.site
+  repo: https://blog.muyin.site
+  issues: https://blog.muyin.site
+  displayName: "统一身份认证"
+  description: "为多个 Halo 站点提供中心身份站、单点登录、用户绑定和角色映射能力。"
+  license:
+    - name: "GPL-3.0"
+      url: "https://www.gnu.org/licenses/gpl-3.0.html"

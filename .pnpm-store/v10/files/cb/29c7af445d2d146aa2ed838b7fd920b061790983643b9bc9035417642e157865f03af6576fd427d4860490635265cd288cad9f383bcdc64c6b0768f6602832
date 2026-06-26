@@ -1,0 +1,16 @@
+import { ButtonType } from '../button/types';
+export type DialogType = "success" | "info" | "warning" | "error";
+export declare const DialogProviderProvideKey = "DIALOG_PROVIDER_PROVIDE_KEY";
+export interface DialogProps {
+    type?: DialogType;
+    visible?: boolean;
+    title?: string;
+    description?: string;
+    confirmType?: ButtonType;
+    showCancel?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+    uniqueId?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+}

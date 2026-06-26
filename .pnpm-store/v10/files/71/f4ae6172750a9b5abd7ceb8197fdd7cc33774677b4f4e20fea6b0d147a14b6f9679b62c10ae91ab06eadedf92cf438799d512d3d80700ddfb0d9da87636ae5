@@ -1,0 +1,62 @@
+{
+  "name": "@rsbuild/plugin-sass",
+  "version": "2.0.0",
+  "description": "Sass plugin for Rsbuild",
+  "homepage": "https://rsbuild.rs",
+  "bugs": {
+    "url": "https://github.com/web-infra-dev/rsbuild/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/web-infra-dev/rsbuild",
+    "directory": "packages/plugin-sass"
+  },
+  "files": [
+    "dist",
+    "compiled"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "deepmerge": "^4.3.1",
+    "loader-utils": "^2.0.4",
+    "postcss": "^8.5.15",
+    "reduce-configs": "^2.0.1",
+    "sass-embedded": "^1.100.0"
+  },
+  "devDependencies": {
+    "@rslib/core": "0.23.0",
+    "@types/node": "^24.13.2",
+    "@types/sass-loader": "^8.0.10",
+    "prebundle": "1.6.5",
+    "resolve-url-loader": "^5.0.0",
+    "sass-loader": "^16.0.8",
+    "typescript": "^6.0.3",
+    "@rsbuild/core": "2.1.0-beta.0",
+    "@scripts/test-helper": "1.0.0"
+  },
+  "peerDependencies": {
+    "@rsbuild/core": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@rsbuild/core": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "rslib",
+    "dev": "rslib -w",
+    "prebundle": "prebundle"
+  }
+}

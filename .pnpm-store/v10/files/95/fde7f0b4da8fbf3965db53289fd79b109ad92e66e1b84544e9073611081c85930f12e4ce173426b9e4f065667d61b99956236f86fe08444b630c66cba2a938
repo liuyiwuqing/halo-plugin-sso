@@ -1,0 +1,20 @@
+import { DialogProps, DialogType } from './types';
+declare const _default: import('vue').DefineComponent<DialogProps, {}, {}, {}, {}, import('vue').ComponentOptionsMixin, import('vue').ComponentOptionsMixin, {} & {
+    close: () => any;
+    "update:visible": (visible: boolean) => any;
+}, string, import('vue').PublicProps, Readonly<DialogProps> & Readonly<{
+    onClose?: (() => any) | undefined;
+    "onUpdate:visible"?: ((visible: boolean) => any) | undefined;
+}>, {
+    type: DialogType;
+    title: string;
+    description: string;
+    visible: boolean;
+    confirmType: import('../button').ButtonType;
+    showCancel: boolean;
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+}, {}, {}, {}, string, import('vue').ComponentProvideOptions, false, {}, any>;
+export default _default;

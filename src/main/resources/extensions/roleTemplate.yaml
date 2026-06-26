@@ -1,0 +1,138 @@
+kind: Role
+apiVersion: v1alpha1
+metadata:
+  name: rt-console.sso.muyin.site
+  labels:
+    halo.run/role-template: "true"
+  annotations:
+    rbac.authorization.halo.run/ui-permissions: |
+      ["plugin:sso:console"]
+    rbac.authorization.halo.run/display-name: "统一身份认证管理"
+    rbac.authorization.halo.run/module: "统一身份认证"
+rules:
+  - apiGroups:
+      - sso.muyin.site
+    resources:
+      - ssoClients
+      - ssoAuthorizationCodes
+      - ssoUserBindings
+      - ssoRoleMappings
+      - ssoAuditLogs
+      - ssoAuditLogCleanupRecords
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - console.sso.muyin.site
+    resources:
+      - clients
+      - role-mappings
+      - user-bindings
+      - audit-logs
+      - settings
+    verbs:
+      - get
+      - list
+  - nonResourceURLs:
+      - /apis/console.sso.muyin.site/v1alpha1/clients/create
+      - /apis/console.sso.muyin.site/v1alpha1/clients/update
+      - /apis/console.sso.muyin.site/v1alpha1/role-mappings/create
+      - /apis/console.sso.muyin.site/v1alpha1/role-mappings/update
+      - /apis/console.sso.muyin.site/v1alpha1/audit-logs/cleanup
+    verbs:
+      - create
+      - update
+
+---
+kind: Role
+apiVersion: v1alpha1
+metadata:
+  name: rt-public.sso.muyin.site-anonymous
+  labels:
+    halo.run/role-template: "true"
+    halo.run/hidden: "true"
+    rbac.authorization.halo.run/aggregate-to-anonymous: "true"
+rules:
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - client
+    resourceNames:
+      - callback
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - roles
+    resourceNames:
+      - list
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - client
+    resourceNames:
+      - login
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - oauth
+    resourceNames:
+      - authorize
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - oauth
+    resourceNames:
+      - userinfo
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - oauth
+    resourceNames:
+      - notice
+    verbs:
+      - get
+  - nonResourceURLs:
+      - /apis/public.sso.muyin.site/v1alpha1/oauth/token
+    verbs:
+      - create
+
+---
+kind: Role
+apiVersion: v1alpha1
+metadata:
+  name: rt-public.sso.muyin.site-authenticated
+  labels:
+    halo.run/role-template: "false"
+    halo.run/hidden: "true"
+    rbac.authorization.halo.run/aggregate-to-authenticated: "true"
+rules:
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - oauth
+    resourceNames:
+      - authorize
+    verbs:
+      - get
+  - apiGroups:
+      - public.sso.muyin.site
+    resources:
+      - oauth
+    resourceNames:
+      - notice
+    verbs:
+      - get

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Muyin SSO logo</title>
+  <desc id="desc">A large app-style identity hub mark for single sign-on.</desc>
+  <defs>
+    <linearGradient id="bg" x1="24" y1="18" x2="232" y2="238" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06111F"/>
+      <stop offset="0.55" stop-color="#0B2545"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="44" y1="20" x2="212" y2="236" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E0F2FE"/>
+      <stop offset="0.35" stop-color="#67E8F9"/>
+      <stop offset="0.72" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="core" x1="86" y1="78" x2="170" y2="178" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#BAE6FD"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-18%" width="136%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#020617" flood-opacity="0.36"/>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <path d="M23 191C64 219 121 227 174 209C205 198 227 179 238 153" fill="none" stroke="#67E8F9" stroke-opacity="0.14" stroke-width="3"/>
+  <path d="M20 76C60 43 114 31 165 43C199 51 224 68 238 94" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="3"/>
+
+  <g filter="url(#shadow)">
+    <path d="M128 18L220 69V130C220 184 184 220 128 238C72 220 36 184 36 130V69L128 18Z" fill="#071827" fill-opacity="0.9" stroke="url(#rim)" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M128 44L194 81V129C194 166 170 192 128 207C86 192 62 166 62 129V81L128 44Z" fill="none" stroke="#E0F2FE" stroke-opacity="0.16" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M68 82L101 111" stroke="#7DD3FC" stroke-opacity="0.7" stroke-width="9"/>
+    <path d="M188 82L155 111" stroke="#7DD3FC" stroke-opacity="0.7" stroke-width="9"/>
+    <path d="M68 174L101 145" stroke="#5EEAD4" stroke-opacity="0.72" stroke-width="9"/>
+    <path d="M188 174L155 145" stroke="#5EEAD4" stroke-opacity="0.72" stroke-width="9"/>
+  </g>
+
+  <g>
+    <circle cx="63" cy="78" r="17" fill="#0EA5E9"/>
+    <circle cx="193" cy="78" r="17" fill="#22D3EE"/>
+    <circle cx="63" cy="178" r="17" fill="#14B8A6"/>
+    <circle cx="193" cy="178" r="17" fill="#38BDF8"/>
+    <circle cx="63" cy="78" r="6" fill="#E0F2FE"/>
+    <circle cx="193" cy="78" r="6" fill="#ECFEFF"/>
+    <circle cx="63" cy="178" r="6" fill="#CCFBF1"/>
+    <circle cx="193" cy="178" r="6" fill="#E0F2FE"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="86" y="86" width="84" height="84" rx="26" fill="url(#core)"/>
+    <path d="M108 129C108 116 117 106 128 106C139 106 148 116 148 129C148 142 139 151 128 151C117 151 108 142 108 129Z" fill="#0F172A"/>
+    <path d="M128 119V139" stroke="#BAE6FD" stroke-width="9" stroke-linecap="round"/>
+    <path d="M116 130H140" stroke="#BAE6FD" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <path d="M128 62C91 62 79 91 96 111C114 132 161 121 164 151C167 181 128 195 94 174" fill="none" stroke="url(#rim)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M162 72L176 62L190 72" fill="none" stroke="#E0F2FE" stroke-opacity="0.9" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

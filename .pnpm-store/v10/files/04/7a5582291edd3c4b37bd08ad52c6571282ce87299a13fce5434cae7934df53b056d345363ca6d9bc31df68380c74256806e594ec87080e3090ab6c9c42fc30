@@ -1,0 +1,35 @@
+type __VLS_Props = {
+    page?: number;
+    size?: number;
+    total?: number;
+    sizeOptions?: number[];
+    showTotal?: boolean;
+    pageLabel?: string;
+    sizeLabel?: string;
+    totalLabel?: string;
+};
+declare const _default: import('vue').DefineComponent<__VLS_Props, {}, {}, {}, {}, import('vue').ComponentOptionsMixin, import('vue').ComponentOptionsMixin, {} & {
+    "update:page": (page: number) => any;
+    "update:size": (size: number) => any;
+    change: (value: {
+        page: number;
+        size: number;
+    }) => any;
+}, string, import('vue').PublicProps, Readonly<__VLS_Props> & Readonly<{
+    "onUpdate:page"?: ((page: number) => any) | undefined;
+    "onUpdate:size"?: ((size: number) => any) | undefined;
+    onChange?: ((value: {
+        page: number;
+        size: number;
+    }) => any) | undefined;
+}>, {
+    size: number;
+    page: number;
+    total: number;
+    sizeOptions: number[];
+    showTotal: boolean;
+    pageLabel: string;
+    sizeLabel: string;
+    totalLabel: string;
+}, {}, {}, {}, string, import('vue').ComponentProvideOptions, false, {}, HTMLDivElement>;
+export default _default;

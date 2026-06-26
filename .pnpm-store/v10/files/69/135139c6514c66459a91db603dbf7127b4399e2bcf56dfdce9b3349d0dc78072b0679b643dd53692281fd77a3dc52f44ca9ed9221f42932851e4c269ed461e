@@ -1,0 +1,4028 @@
+/// <reference path="./locale/index.d.ts" />
+import { Attachment, Backup, DetailedUser, Extension, GetThumbnailByUriSizeEnum, ListedComment, ListedPost, ListedReply, ListedSinglePage, Plugin, Theme } from "@halo-dev/api-client";
+import { Component, Raw, Ref } from "vue";
+import { RouteLocationRaw, RouteRecordName, RouteRecordRaw } from "vue-router";
+import { AnyExtension } from "@tiptap/core";
+
+//#region ../../node_modules/.pnpm/mitt@3.0.1/node_modules/mitt/index.d.ts
+declare type EventType = string | symbol;
+declare type Handler<T = unknown> = (event: T) => void;
+declare type WildcardHandler<T = Record<string, unknown>> = (type: keyof T, event: T[keyof T]) => void;
+declare type EventHandlerList<T = unknown> = Array<Handler<T>>;
+declare type WildCardEventHandlerList<T = Record<string, unknown>> = Array<WildcardHandler<T>>;
+declare type EventHandlerMap<Events extends Record<EventType, unknown>> = Map<keyof Events | '*', EventHandlerList<Events[keyof Events]> | WildCardEventHandlerList<Events>>;
+interface Emitter<Events extends Record<EventType, unknown>> {
+  all: EventHandlerMap<Events>;
+  on<Key extends keyof Events>(type: Key, handler: Handler<Events[Key]>): void;
+  on(type: '*', handler: WildcardHandler<Events>): void;
+  off<Key extends keyof Events>(type: Key, handler?: Handler<Events[Key]>): void;
+  off(type: '*', handler: WildcardHandler<Events>): void;
+  emit<Key extends keyof Events>(type: Key, event: Events[Key]): void;
+  emit<Key extends keyof Events>(type: undefined extends Events[Key] ? Key : never): void;
+}
+//#endregion
+//#region src/events/index.d.ts
+type Events = {
+  /**
+   * Emitted when a plugin's configuration map is updated.
+   */
+  "core:plugin:configMap:updated": {
+    pluginName: string;
+    group: string;
+  };
+};
+declare const events: Emitter<Events>;
+//#endregion
+//#region src/plugin/types/attachment-selector.d.ts
+/**
+ * Represents a simplified attachment object with essential properties.
+ * Used for lightweight attachment representations without full API client dependencies.
+ */
+interface AttachmentSimple {
+  /**
+   * The URL of the attachment.
+   */
+  url: string;
+  /**
+   * The MIME type of the attachment (e.g., 'image/png', 'video/mp4').
+   */
+  mediaType?: string;
+  /**
+   * Alternative text for the attachment, used for accessibility.
+   */
+  alt?: string;
+  /**
+   * Caption or description for the attachment.
+   */
+  caption?: string;
+}
+/**
+ * Union type representing different forms of attachment references.
+ *
+ * @remarks
+ * This flexible type allows working with attachments in various formats:
+ * - Full `Attachment` object from the API client
+ * - Simplified `AttachmentSimple` object with basic properties
+ * - String URL directly referencing the attachment
+ */
+type AttachmentLike = Attachment | AttachmentSimple | string;
+/**
+ * Defines a custom attachment selector provider that plugins can register.
+ *
+ * @remarks
+ * Attachment selector providers allow plugins to create custom UI components
+ * for selecting attachments from different sources (e.g., local upload,
+ * external services, galleries, etc.).
+ */
+interface AttachmentSelectProvider {
+  /**
+   * Unique identifier for this attachment selector provider.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:selector-id').
+   */
+  id: string;
+  /**
+   * Display label for the attachment selector.
+   * This label will be shown in the UI where users can choose between different selectors.
+   */
+  label: string;
+  /**
+   * The Vue component that implements the attachment selection interface.
+   * Can be either a component definition or a component name string.
+   *
+   * @remarks
+   * The component should emit selected attachments through the provided callback
+   * or emit events that the parent component can handle.
+   */
+  component: Component | string;
+  /**
+   * Optional callback function invoked when attachments are selected.
+   *
+   * @param attachments - Array of selected attachments in various formats.
+   *
+   * @remarks
+   * This callback is triggered after the user confirms their selection.
+   * It allows the provider to handle post-selection logic like validation,
+   * transformation, or triggering additional actions.
+   */
+  callback?: (attachments: AttachmentLike[]) => void;
+}
+//#endregion
+//#region src/plugin/types/backup.d.ts
+/**
+ * Defines a custom tab for the backup management page.
+ *
+ * @remarks
+ * Backup tabs allow plugins to extend the backup interface with custom
+ * functionality such as cloud backup providers, automated backup schedules,
+ * or specialized restore operations.
+ */
+interface BackupTab {
+  /**
+   * Unique identifier for the backup tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+}
+//#endregion
+//#region src/plugin/types/comment.d.ts
+/**
+ * Represents the result of resolving a comment subject reference.
+ * Contains display information and navigation details for the commented content.
+ */
+interface CommentSubjectRefResult {
+  /**
+   * Short label or type identifier for the subject (e.g., 'Post', 'Page', 'Custom').
+   */
+  label: string;
+  /**
+   * The title or name of the content being commented on.
+   */
+  title: string;
+  /**
+   * Internal route location to navigate to the subject.
+   * Used for navigating within the Halo console.
+   */
+  route?: RouteLocationRaw;
+  /**
+   * External URL to the subject if it's hosted outside the console.
+   * Typically used for public-facing content.
+   */
+  externalUrl?: string;
+}
+/**
+ * Defines a provider that resolves comment subject references.
+ *
+ * @remarks
+ * Comment subject reference providers allow plugins to make their custom content types
+ * commentable. The provider resolves extension references into human-readable information
+ * that can be displayed in the comment management interface.
+ */
+type CommentSubjectRefProvider = {
+  /**
+   * The kind of the extension that this provider handles.
+   * Must match the `kind` field in the extension's metadata.
+   */
+  kind: string;
+  /**
+   * The API group of the extension that this provider handles.
+   * Must match the `group` field in the extension's metadata.
+   */
+  group: string;
+  /**
+   * Resolves an extension reference into displayable comment subject information.
+   *
+   * @param subject - The extension object representing the commented content.
+   * @returns The resolved subject information including label, title, and navigation details.
+   */
+  resolve: (subject: Extension) => CommentSubjectRefResult;
+};
+/**
+ * Defines a custom comment editor provider.
+ *
+ * @remarks
+ * Allows plugins to replace the default comment editor with a custom implementation.
+ * Useful for providing rich-text editing, markdown support, or specialized input methods.
+ */
+interface CommentEditorProvider {
+  /**
+   * The Vue component that implements the custom comment editor.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component should emit appropriate events for content changes and
+   * integrate with the parent form for submission handling.
+   */
+  component: Raw<Component>;
+}
+/**
+ * Defines a custom comment content renderer.
+ *
+ * @remarks
+ * Allows plugins to customize how comment content is displayed in comment lists.
+ * Useful when comments are stored in a custom format that requires special rendering.
+ */
+interface CommentContentProvider {
+  /**
+   * The Vue component that renders the comment content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component receives the comment content as props and should handle
+   * rendering, sanitization, and any interactive features.
+   */
+  component: Raw<Component>;
+}
+//#endregion
+//#region src/plugin/types/dashboard-widget.d.ts
+/**
+ * Defines responsive layout configurations for dashboard widgets across different screen sizes.
+ *
+ * @remarks
+ * Each breakpoint can have a different layout arrangement. If a breakpoint is not specified,
+ * it will fall back to the next larger breakpoint's layout.
+ */
+interface DashboardResponsiveLayout {
+  /**
+   * Layout for large screens (typically ≥ 1200px).
+   */
+  lg?: DashboardWidget[];
+  /**
+   * Layout for medium screens (typically ≥ 996px).
+   */
+  md?: DashboardWidget[];
+  /**
+   * Layout for small screens (typically ≥ 768px).
+   */
+  sm?: DashboardWidget[];
+  /**
+   * Layout for extra small screens (typically ≥ 480px).
+   */
+  xs?: DashboardWidget[];
+  /**
+   * Layout for double extra small screens (typically < 480px).
+   */
+  xxs?: DashboardWidget[];
+}
+/**
+ * Represents an instance of a dashboard widget with its position, size, and configuration.
+ *
+ * @remarks
+ * Dashboard widgets are arranged in a grid layout system. The grid typically has 12 columns,
+ * and widgets can span multiple rows and columns.
+ */
+interface DashboardWidget {
+  /**
+   * The x-coordinate (column position) in the grid, starting from 0.
+   */
+  x: number;
+  /**
+   * The y-coordinate (row position) in the grid, starting from 0.
+   */
+  y: number;
+  /**
+   * The width of the widget in grid columns.
+   */
+  w: number;
+  /**
+   * The height of the widget in grid rows.
+   */
+  h: number;
+  /**
+   * Unique identifier for this widget instance in the layout.
+   * Can be a number or string.
+   */
+  i: number | string;
+  /**
+   * Minimum width constraint in grid columns.
+   */
+  minW?: number;
+  /**
+   * Minimum height constraint in grid rows.
+   */
+  minH?: number;
+  /**
+   * Maximum width constraint in grid columns.
+   */
+  maxW?: number;
+  /**
+   * Maximum height constraint in grid rows.
+   */
+  maxH?: number;
+  /**
+   * Reference to the widget definition ID that this instance represents.
+   */
+  id: string;
+  /**
+   * User-specific configuration for this widget instance.
+   * The structure depends on the widget's definition schema.
+   */
+  config?: Record<string, unknown>;
+  /**
+   * Optional array of permission identifiers required to view this widget instance.
+   */
+  permissions?: string[];
+}
+/**
+ * Defines a dashboard widget type that can be added to the dashboard.
+ *
+ * @remarks
+ * Widget definitions serve as templates from which users can create widget instances.
+ * Each definition specifies the component, default configuration, and size constraints.
+ *
+ * @example
+ * ```typescript
+ * const widgetDef: DashboardWidgetDefinition = {
+ *   id: 'plugin-name:widget-id',
+ *   component: markRaw(MyWidgetComponent),
+ *   group: 'statistics',
+ *   defaultSize: { w: 4, h: 2, minW: 2, minH: 1 },
+ *   defaultConfig: { refreshInterval: 60000 },
+ *   configFormKitSchema: [
+ *     { $formkit: 'number', name: 'refreshInterval', label: 'Refresh Interval (ms)' }
+ *   ]
+ * };
+ * ```
+ */
+interface DashboardWidgetDefinition {
+  /**
+   * Unique identifier for the widget definition.
+   * Should follow a namespaced pattern (e.g., 'plugin-name:widget-id').
+   */
+  id: string;
+  /**
+   * The Vue component that renders the widget.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   */
+  component: Raw<Component>;
+  /**
+   * Category or group for organizing widgets in the selection interface.
+   * Common groups include 'statistics', 'content', 'system', etc.
+   */
+  group: string;
+  /**
+   * FormKit schema for the widget's configuration form.
+   * Can be an array, a function returning an array, or a function returning a Promise.
+   *
+   * @remarks
+   * Defines the editable settings that users can configure for widget instances.
+   * The schema uses FormKit's schema format.
+   */
+  configFormKitSchema?: Record<string, unknown>[] | (() => Promise<Record<string, unknown>[]>) | (() => Record<string, unknown>[]);
+  /**
+   * Default configuration values for new widget instances.
+   * These values will be used when a user first adds the widget to their dashboard.
+   */
+  defaultConfig?: Record<string, unknown>;
+  /**
+   * Default size and constraints for the widget.
+   *
+   * @remarks
+   * Specifies the initial dimensions and any size limitations when the widget is added.
+   */
+  defaultSize: {
+    /**
+     * Default width in grid columns.
+     */
+    w: number;
+    /**
+     * Default height in grid rows.
+     */
+    h: number;
+    /**
+     * Minimum width constraint in grid columns.
+     */
+    minW?: number;
+    /**
+     * Minimum height constraint in grid rows.
+     */
+    minH?: number;
+    /**
+     * Maximum width constraint in grid columns.
+     */
+    maxW?: number;
+    /**
+     * Maximum height constraint in grid rows.
+     */
+    maxH?: number;
+  };
+  /**
+   * Optional array of permission identifiers required to add or view this widget.
+   */
+  permissions?: string[];
+}
+/**
+ * Base interface for dashboard widget quick action items.
+ */
+interface DashboardWidgetQuickActionBaseItem {
+  /**
+   * Unique identifier for the quick action.
+   */
+  id: string;
+  /**
+   * Optional array of permission identifiers required to see this action.
+   */
+  permissions?: string[];
+}
+/**
+ * A quick action item that uses a custom component for rendering.
+ * Provides maximum flexibility for complex action UI.
+ */
+interface DashboardWidgetQuickActionComponentItem extends DashboardWidgetQuickActionBaseItem {
+  /**
+   * Custom Vue component for rendering the quick action.
+   * When provided, standard properties (icon, title, action) are optional.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional icon component displayed alongside the action.
+   */
+  icon?: Raw<Component>;
+  /**
+   * Optional title text for the action.
+   */
+  title?: string;
+  /**
+   * Optional click handler for the action.
+   */
+  action?: () => void;
+}
+/**
+ * A standard quick action item with icon, title, and action handler.
+ * Uses the default rendering style for consistency.
+ */
+interface DashboardWidgetQuickActionStandardItem extends DashboardWidgetQuickActionBaseItem {
+  /**
+   * Cannot provide a custom component for standard items.
+   */
+  component?: never;
+  /**
+   * Icon component displayed with the action (required for standard items).
+   */
+  icon: Raw<Component>;
+  /**
+   * Display title for the action (required for standard items).
+   */
+  title: string;
+  /**
+   * Click handler invoked when the action is triggered (required for standard items).
+   */
+  action: () => void;
+}
+/**
+ * A quick action item that navigates to a route when triggered.
+ */
+interface DashboardWidgetQuickActionRouteItem extends DashboardWidgetQuickActionBaseItem {
+  /**
+   * Cannot provide a custom component for route items.
+   */
+  component?: never;
+  /**
+   * Cannot provide an action handler for route items.
+   */
+  action?: never;
+  /**
+   * Icon component displayed with the action (required for route items).
+   */
+  icon: Raw<Component>;
+  /**
+   * Display title for the action (required for route items).
+   */
+  title: string;
+  /**
+   * Route to navigate to when the action is triggered (required for route items).
+   */
+  route: RouteLocationRaw;
+}
+/**
+ * Represents a quick action button that can be added to dashboard widgets.
+ *
+ * @remarks
+ * Quick actions provide shortcuts to common operations directly from the dashboard.
+ * They can either use a custom component for full control or follow the standard
+ * pattern with an icon, title, and action handler.
+ */
+type DashboardWidgetQuickActionItem = DashboardWidgetQuickActionComponentItem | DashboardWidgetQuickActionStandardItem | DashboardWidgetQuickActionRouteItem;
+//#endregion
+//#region src/plugin/types/editor-provider.d.ts
+/**
+ * Defines a custom content editor provider.
+ *
+ * @remarks
+ * Editor providers allow plugins to register alternative content editors beyond
+ * the default editor. This enables support for different content formats, editing
+ * experiences, and specialized workflows (e.g., Markdown, rich-text, code, visual builders).
+ *
+ * @example
+ * ```typescript
+ * const markdownEditor: EditorProvider = {
+ *   name: 'markdown-editor',
+ *   displayName: 'Markdown Editor',
+ *   logo: '/path/to/markdown-logo.svg',
+ *   component: MarkdownEditorComponent,
+ *   rawType: 'markdown'
+ * };
+ * ```
+ */
+interface EditorProvider {
+  /**
+   * Unique identifier for the editor provider.
+   * Should use kebab-case naming (e.g., 'markdown-editor', 'wysiwyg-editor').
+   */
+  name: string;
+  /**
+   * Human-readable display name shown in the editor selection UI.
+   */
+  displayName: string;
+  /**
+   * Optional URL or path to the editor's logo image.
+   * Displayed in the editor selection interface for visual identification.
+   */
+  logo?: string;
+  /**
+   * The Vue component that implements the editor interface.
+   *
+   * @remarks
+   * The component should handle content editing, emit appropriate events for
+   * content changes, and integrate with the parent form for validation and submission.
+   */
+  component: Component;
+  /**
+   * The content format or MIME type that this editor produces.
+   *
+   * @remarks
+   * This identifier is stored with the content to indicate which editor should be
+   * used when reopening for editing. Common values include:
+   * - 'markdown' for Markdown content
+   * - 'html' for HTML content
+   * - 'json' for structured JSON data
+   * - Custom identifiers for proprietary formats
+   */
+  rawType: string;
+}
+//#endregion
+//#region src/plugin/types/list-entity-field.d.ts
+/**
+ * Defines a custom field (column) that can be added to entity list views.
+ *
+ * @remarks
+ * Entity field items allow plugins to add custom columns or metadata displays
+ * to list views such as posts, pages, comments, etc. Fields can be positioned
+ * at the start or end of the list and can include custom rendering logic.
+ *
+ * @example
+ * ```typescript
+ * const customField: EntityFieldItem = {
+ *   priority: 10,
+ *   position: 'end',
+ *   component: markRaw(CustomFieldComponent),
+ *   props: { format: 'short' },
+ *   permissions: ['plugin:my-plugin:view']
+ * };
+ * ```
+ */
+interface EntityFieldItem {
+  /**
+   * Priority for ordering multiple custom fields.
+   * Higher priority fields are displayed first within their position group.
+   */
+  priority: number;
+  /**
+   * The position where this field should be inserted in the list.
+   * - 'start': Before the default fields
+   * - 'end': After the default fields
+   */
+  position: "start" | "end";
+  /**
+   * The Vue component that renders the field content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component typically receives the entity object as a prop and should
+   * render the custom field information in a list-friendly format.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional props to pass to the component.
+   * These can be used to configure the field's behavior or appearance.
+   */
+  props?: Record<string, unknown>;
+  /**
+   * Optional array of permission identifiers required to view this field.
+   * The field will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Whether the field should be hidden by default.
+   * Can be used to implement toggleable columns or conditional visibility.
+   */
+  hidden?: boolean;
+}
+//#endregion
+//#region src/plugin/types/list-operation.d.ts
+/**
+ * Defines a custom operation (action button or menu item) for entity list items.
+ *
+ * @remarks
+ * Operation items allow plugins to add custom actions to list rows across various
+ * entity types (posts, pages, comments, etc.). Operations can be standalone buttons
+ * or nested within dropdown menus, and can include permission checks and conditional visibility.
+ *
+ * @typeParam T - The type of entity this operation applies to (e.g., ListedPost, Plugin, Theme).
+ *
+ * @example
+ * ```typescript
+ * const exportOperation: OperationItem<ListedPost> = {
+ *   priority: 20,
+ *   component: markRaw(VButton),
+ *   label: 'Export',
+ *   action: (post) => {
+ *     console.log('Exporting post:', post.metadata.name);
+ *   },
+ *   permissions: ['plugin:export:use']
+ * };
+ *
+ * // Operation with children (dropdown menu)
+ * const shareOperation: OperationItem<ListedPost> = {
+ *   priority: 15,
+ *   component: markRaw(VDropdown),
+ *   label: 'Share',
+ *   children: [
+ *     {
+ *       priority: 10,
+ *       component: markRaw(VButton),
+ *       label: 'Share to Twitter',
+ *       action: (post) => { // ... }
+ *     },
+ *     {
+ *       priority: 20,
+ *       component: markRaw(VButton),
+ *       label: 'Copy Link',
+ *       action: (post) => { // ... }
+ *     }
+ *   ]
+ * };
+ * ```
+ */
+interface OperationItem<T> {
+  /**
+   * Priority for ordering multiple operations.
+   * Higher priority operations are displayed first (leftmost or at the top).
+   */
+  priority: number;
+  /**
+   * The Vue component that renders the operation.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * Common components include buttons, dropdown menus, or custom action components.
+   * The component receives props and should handle the visual representation and
+   * interaction of the operation.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional props to pass to the component.
+   * Can be used to configure appearance, behavior, or additional data.
+   */
+  props?: Record<string, unknown>;
+  /**
+   * Optional action handler invoked when the operation is triggered.
+   *
+   * @param item - The entity instance that this operation was triggered on.
+   *
+   * @remarks
+   * This is typically used for operations that need to perform actions on the entity,
+   * such as exporting, sharing, or custom processing. The handler can be async.
+   */
+  action?: (item?: T) => void;
+  /**
+   * Optional display label for the operation.
+   * Used for button text, menu items, or tooltips.
+   */
+  label?: string;
+  /**
+   * Whether the operation should be hidden by default.
+   * Can be used to implement conditional visibility based on entity state or user context.
+   */
+  hidden?: boolean;
+  /**
+   * Optional array of permission identifiers required to see this operation.
+   * The operation will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Optional nested operations for creating hierarchical menus.
+   *
+   * @remarks
+   * When provided, this operation becomes a dropdown menu or submenu containing
+   * the child operations. Useful for grouping related actions together.
+   */
+  children?: OperationItem<T>[];
+}
+//#endregion
+//#region src/plugin/types/plugin-installation-tab.d.ts
+/**
+ * Defines a custom tab for the plugin installation page.
+ *
+ * @remarks
+ * Plugin installation tabs allow plugins to provide alternative installation methods
+ * or additional functionality during the plugin installation process. Examples include
+ * installing from a URL, importing from a marketplace, or batch installation features.
+ *
+ * @example
+ * ```typescript
+ * const remoteInstallTab: PluginInstallationTab = {
+ *   id: 'remote-install',
+ *   label: 'Install from URL',
+ *   component: markRaw(RemoteInstallComponent),
+ *   priority: 10,
+ *   permissions: ['plugin:install:remote']
+ * };
+ * ```
+ */
+interface PluginInstallationTab {
+  /**
+   * Unique identifier for the installation tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component should implement the installation interface and handle
+   * the complete installation workflow, including validation and error handling.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional props to pass to the component.
+   * Can be used to configure the installation behavior or provide additional context.
+   */
+  props?: Record<string, unknown>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Priority for ordering multiple installation tabs.
+   * Higher priority tabs appear first (leftmost) in the tab navigation.
+   */
+  priority: number;
+}
+//#endregion
+//#region src/plugin/types/plugin-tab.d.ts
+/**
+ * Defines a custom tab for a plugin's own detail/settings page.
+ *
+ * @remarks
+ * Plugin tabs allow plugins to organize their settings, configuration, and
+ * management interfaces into multiple sections. This is useful for plugins
+ * with extensive configuration options or multiple functional areas.
+ *
+ * @example
+ * ```typescript
+ * const settingsTab: PluginTab = {
+ *   id: 'settings',
+ *   label: 'Settings',
+ *   component: markRaw(SettingsComponent),
+ *   permissions: ['plugin:my-plugin:manage']
+ * };
+ * ```
+ */
+interface PluginTab {
+  /**
+   * Unique identifier for the plugin tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component should implement the tab's functionality, which might include
+   * configuration forms, status displays, or management interfaces.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+}
+//#endregion
+//#region src/plugin/types/theme-list-tab.d.ts
+/**
+ * Defines a custom tab for the theme list page.
+ *
+ * @remarks
+ * Theme list tabs allow plugins to extend the theme management interface with
+ * custom functionality such as theme marketplaces, remote theme browsers,
+ * theme backup/restore tools, or advanced theme customization interfaces.
+ *
+ * @example
+ * ```typescript
+ * const themeMarketplaceTab: ThemeListTab = {
+ *   id: 'marketplace',
+ *   label: 'Theme Marketplace',
+ *   component: markRaw(MarketplaceComponent),
+ *   priority: 20,
+ *   permissions: ['plugin:theme-marketplace:view']
+ * };
+ * ```
+ */
+interface ThemeListTab {
+  /**
+   * Unique identifier for the theme list tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component should implement the theme-related functionality and integrate
+   * appropriately with the theme management system.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional props to pass to the component.
+   * Can be used to configure behavior or provide additional context.
+   */
+  props?: Record<string, unknown>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Priority for ordering multiple theme list tabs.
+   * Higher priority tabs appear first (leftmost) in the tab navigation.
+   */
+  priority: number;
+}
+//#endregion
+//#region ../../node_modules/.pnpm/@formkit+core@2.1.0/node_modules/@formkit/core/dist/index.d.mts
+/**
+ * All FormKitMiddleware conform to the pattern of accepting a payload and a
+ * `next()` function. They can either pass the payload to the next middleware
+ * explicitly (as an argument of next), or implicitly (no argument for next).
+ *
+ * @public
+ */
+type FormKitMiddleware<T = unknown> = (payload: T, next: (payload: T) => T) => T;
+/**
+ * The FormKitDispatcher interface is responsible creating/running "hooks".
+ *
+ * @public
+ */
+interface FormKitDispatcher<T> {
+  (dispatchable: FormKitMiddleware<T>): number;
+  unshift: (dispatchable: FormKitMiddleware<T>) => number;
+  remove: (dispatchable: FormKitMiddleware<T>) => void;
+  dispatch: (payload: T) => T;
+}
+/**
+ * Event listener functions definition.
+ *
+ * @public
+ */
+interface FormKitEventListener {
+  (event: FormKitEvent): void;
+  receipt?: string;
+}
+/**
+ * The internal structure of a FormKitEvent.
+ *
+ * @public
+ */
+interface FormKitEvent {
+  payload: any;
+  name: string;
+  bubble: boolean;
+  origin: FormKitNode;
+  meta?: Record<string, unknown>;
+}
+/**
+ * The FormKitEventEmitter definition.
+ *
+ * @public
+ */
+interface FormKitEventEmitter {
+  (node: FormKitNode, event: FormKitEvent): void;
+  on: (eventName: string, listener: FormKitEventListener, pos?: 'push' | 'unshift') => string;
+  off: (receipt: string) => void;
+  pause: (node?: FormKitNode) => void;
+  play: (node?: FormKitNode) => void;
+  flush: () => void;
+}
+/**
+ * The structure of a core FormKitMessage. These messages are used to store
+ * information about the state of a node.
+ *
+ * @public
+ */
+interface FormKitMessageProps {
+  blocking: boolean;
+  key: string;
+  meta: FormKitMessageMeta;
+  type: string;
+  value?: string | number | boolean;
+  visible: boolean;
+}
+/**
+ * A FormKit message is immutable, so all properties should be readonly.
+ *
+ * @public
+ */
+type FormKitMessage = Readonly<FormKitMessageProps>;
+/**
+ * A registry of input messages that should be applied to children of the node
+ * they are passed to — where the string key of the object is the address of
+ * the node to apply the messages on and the value is the message itself.
+ *
+ * @public
+ */
+interface FormKitInputMessages {
+  [address: string]: FormKitMessage[];
+}
+/**
+ * Child messages that were not immediately applied due to the child not existing.
+ *
+ * @public
+ */
+type ChildMessageBuffer = Map<string, Array<[FormKitMessage[], MessageClearer | undefined]>>;
+/**
+ * A string or function that allows clearing messages.
+ *
+ * @public
+ */
+type MessageClearer = string | ((message: FormKitMessage) => boolean);
+/**
+ * Messages have can have any arbitrary meta data attached to them.
+ *
+ * @public
+ */
+interface FormKitMessageMeta {
+  [index: string]: any;
+  /**
+   * If this property is set, then message producers (like formkit/i18n) should
+   * use this key instead of the message key as the lookup for the proper
+   * message to produce.
+   */
+  messageKey?: string;
+  /**
+   * If this property is set on a message then only the values in this property
+   * will be passed as arguments to an i18n message localization function.
+   */
+  i18nArgs?: any[];
+}
+/**
+ * Defines the actual store of messages.
+ *
+ * @public
+ */
+interface FormKitMessageStore {
+  [index: string]: FormKitMessage;
+}
+/**
+ * The message store contains all of the messages that pertain to a given node.
+ *
+ * @public
+ */
+type FormKitStore = FormKitMessageStore & {
+  _n: FormKitNode;
+  _b: Array<[messages: FormKitMessage[], clear?: MessageClearer]>;
+  _m: ChildMessageBuffer;
+  _r?: string;
+  buffer: boolean;
+} & FormKitStoreTraps;
+/**
+ * The available traps on the FormKit store.
+ *
+ * @public
+ */
+interface FormKitStoreTraps {
+  apply: (messages: Array<FormKitMessage> | FormKitInputMessages, clear?: MessageClearer) => void;
+  set: (message: FormKitMessageProps) => FormKitStore;
+  remove: (key: string) => FormKitStore;
+  filter: (callback: (message: FormKitMessage) => boolean, type?: string) => FormKitStore;
+  reduce: <T>(reducer: (accumulator: T, message: FormKitMessage) => T, accumulator: T) => T;
+  release: () => void;
+  touch: () => void;
+}
+/**
+ * Creates a new FormKitMessage object.
+ *
+ * ```ts
+ * // default:
+ * {
+ *   blocking: false,
+ *   key: token(),
+ *   meta: {},
+ *   type: 'state',
+ *   visible: true,
+ * }
+ * ```
+ *
+ * @param conf - An object of optional properties of {@link FormKitMessage | FormKitMessage}.
+ * @param node - A {@link @formkit/node#FormKitNode | FormKitNode}.
+ * @returns A {@link FormKitMessageProps | FormKitMessageProps}.
+ *
+ * @public
+ */
+/**
+ * Error messages.
+ *
+ * @public
+ */
+type ErrorMessages = string | string[] | Record<string, string | string[]>;
+/**
+ * The FormKit ledger, a general-purpose message counting service provided by
+ * FormKit core for counting messages throughout a tree.
+ *
+ * @public
+ */
+interface FormKitLedger {
+  count: (name: string, condition?: FormKitCounterCondition, increment?: number) => Promise<void>;
+  init: (node: FormKitNode) => void;
+  merge: (child: FormKitNode) => void;
+  settled: (name: string) => Promise<void>;
+  unmerge: (child: FormKitNode) => void;
+  value: (name: string) => number;
+}
+/**
+ * Ledger counters require a condition function that determines if a given
+ * message applies to it or not.
+ *
+ * @public
+ */
+interface FormKitCounterCondition {
+  (message: FormKitMessage): boolean;
+}
+/**
+ * The counter object used to perform instance counting within
+ * a tree.
+ *
+ * @public
+ */
+/**
+ * The value being listed out. Can be an array, an object, or a number.
+ *
+ * @public
+ */
+type FormKitListValue = string | Record<string, any> | Array<string | number | Record<string, any>> | number;
+/**
+ * A full loop statement in tuple syntax. Can be read like "foreach value, key? in list".
+ *
+ * @public
+ */
+type FormKitListStatement = [value: any, key: number | string, list: FormKitListValue] | [value: any, list: FormKitListValue];
+/**
+ * Meta attributes are not used when parsing the schema, but can be used to
+ * create tooling.
+ *
+ * @public
+ */
+type FormKitSchemaMeta = {
+  [key: string]: string | number | boolean | undefined | null | CallableFunction | FormKitSchemaMeta;
+};
+/**
+ * Properties available in all schema nodes.
+ *
+ * @public
+ */
+interface FormKitSchemaProps {
+  children?: string | FormKitSchemaNode[] | FormKitSchemaCondition;
+  key?: string;
+  if?: string;
+  for?: FormKitListStatement;
+  bind?: string;
+  meta?: FormKitSchemaMeta;
+}
+/**
+ * Properties available when using a DOM node.
+ *
+ * @public
+ */
+type FormKitSchemaDOMNode = {
+  $el: string | null;
+  attrs?: FormKitSchemaAttributes;
+} & FormKitSchemaProps;
+/**
+ * A simple text node.
+ *
+ * @public
+ */
+type FormKitSchemaTextNode = string;
+/**
+ * The possible value types of attributes (in the schema).
+ *
+ * @public
+ */
+type FormKitAttributeValue = string | number | boolean | undefined | FormKitSchemaAttributes | FormKitSchemaAttributesCondition;
+/**
+ * Conditions nested inside attribute declarations.
+ *
+ * @public
+ */
+interface FormKitSchemaAttributesCondition {
+  if: string;
+  then: FormKitAttributeValue;
+  else?: FormKitAttributeValue;
+}
+/**
+ * DOM attributes are simple string dictionaries.
+ *
+ * @public
+ */
+type FormKitSchemaAttributes = {
+  [index: string]: FormKitAttributeValue;
+} | null | FormKitSchemaAttributesCondition;
+/**
+ * Properties available when defining a generic non-FormKit component.
+ *
+ * @public
+ */
+type FormKitSchemaComponent = {
+  $cmp: string;
+  props?: Record<string, any>;
+} & FormKitSchemaProps;
+/**
+ * Syntactic sugar for a FormKitSchemaComponent node that uses FormKit.
+ *
+ * @public
+ */
+type FormKitSchemaFormKit = {
+  $formkit: string;
+} & Record<string, any> & FormKitSchemaProps;
+/**
+ * A schema node that determines _which_ content to render.
+ *
+ * @public
+ */
+type FormKitSchemaCondition = {
+  if: string;
+  then: FormKitSchemaNode | FormKitSchemaNode[];
+  else?: FormKitSchemaNode | FormKitSchemaNode[];
+};
+/**
+ * The context that is passed from one schema render to the next.
+ *
+ * @public
+ */
+/**
+ * Properties available then defining a schema node.
+ *
+ * @public
+ */
+type FormKitSchemaNode = FormKitSchemaDOMNode | FormKitSchemaComponent | FormKitSchemaTextNode | FormKitSchemaCondition | FormKitSchemaFormKit;
+/**
+ * A partial schema node used to extend or unset section schema properties.
+ *
+ * @public
+ */
+type FormKitSchemaNodeExtension = FormKitSchemaTextNode | (Omit<Partial<FormKitSchemaDOMNode>, '$el'> & {
+  $el?: FormKitSchemaDOMNode['$el'] | undefined;
+  $cmp?: undefined;
+  $formkit?: undefined;
+}) | (Omit<Partial<FormKitSchemaComponent>, '$cmp'> & {
+  $cmp?: FormKitSchemaComponent['$cmp'] | undefined;
+  $el?: undefined;
+  $formkit?: undefined;
+}) | (Partial<FormKitSchemaFormKit> & {
+  $el?: undefined;
+  $cmp?: undefined;
+});
+/**
+ * An entire schema object or subtree from any entry point. Can be a single
+ * node, an array of nodes, or a conditional. This is the type that is passed to
+ * the FormKitSchema constructor.
+ *
+ * @public
+ */
+type FormKitSchemaDefinition = FormKitSchemaNode | FormKitSchemaNode[] | FormKitSchemaCondition;
+/**
+ * Definition for a function that can extend a given schema node.
+ *
+ * @public
+ */
+/**
+ * The shape of the schema definition overrides/extensions.
+ * @public
+ */
+type FormKitSectionsSchema = Record<string, FormKitSchemaNodeExtension | FormKitSchemaCondition | null>;
+/**
+ * Defines a function that allows selectively overriding a given schema.
+ *
+ * @public
+ */
+interface FormKitExtendableSchemaRoot {
+  (extensions: FormKitSectionsSchema): FormKitSchemaDefinition;
+  memoKey?: string;
+}
+/**
+ * Type narrow that a node is a DOM node.
+ *
+ * @param node - A schema node to check
+ *
+ * @returns `boolean`
+ *
+ * @public
+ */
+/**
+ * Definition for a function that produces CSS classes.
+ *
+ * @public
+ */
+interface FormKitClasses {
+  (node: FormKitNode, sectionKey: string): string | Record<string, boolean>;
+}
+/**
+ * Function that produces a standardized object representation of CSS classes.
+ *
+ * @param propertyKey - the section key.
+ * @param node - A {@link FormKitNode | FormKitNode}.
+ * @param sectionClassList - A `string | Record<string, boolean>` or a {@link FormKitClasses | FormKitClasses}.
+ *
+ * @returns `Record<string, boolean>`
+ *
+ * @public
+ */
+/**
+ * Global configuration options.
+ *
+ * @public
+ */
+type FormKitRootConfig = Partial<FormKitConfig> & {
+  _add: (node: FormKitNode) => void;
+  _rm: (node: FormKitNode) => void;
+};
+/**
+ * Creates a new instance of a global configuration option. This object is
+ * essentially just a FormKitOption object, but it can be used as the root for
+ * FormKitConfig's proxy and retain event "emitting".
+ *
+ * @param options - An object of optional properties of {@link FormKitConfig | FormKitConfig}.
+ *
+ * @returns A {@link FormKitRootConfig | FormKitRootConfig}.
+ *
+ * @public
+ */
+/**
+ * Definition of a library item — when registering a new library item, these
+ * are the required and available properties.
+ *
+ * @public
+ */
+type FormKitTypeDefinition<V = unknown> = {
+  /**
+   * The FormKit core node type. Can only be input | list | group.
+   */
+  type: FormKitNodeType;
+  /**
+   * Groups the input into a given family of inputs, generally for styling
+   * purposes only. For example the "text" family would apply to all text-like
+   * inputs.
+   */
+  family?: string;
+  /**
+   * An optional name for the input’s type (e.g. "select" for a select input).
+   * If used, this value takes precedence over the "type" prop string.
+   */
+  forceTypeProp?: string;
+  /**
+   * Custom props that should be added to the input.
+   */
+  props?: FormKitPseudoProps;
+  /**
+   * The schema used to create the input. Either this or the component is
+   * required.
+   */
+  schema?: FormKitExtendableSchemaRoot | FormKitSchemaNode[] | FormKitSchemaCondition;
+  /**
+   * A component to use to render the input. Either this or the schema is
+   * required.
+   */
+  component?: unknown;
+  /**
+   * A library of components to provide to the internal input schema.
+   */
+  library?: Record<string, unknown>;
+  /**
+   * An array of additional feature functions to load when booting the input.
+   */
+  features?: Array<(node: FormKitNode<V>) => void>;
+  /**
+   * An optional string to use as a comparison key for memoizing the schema.
+   */
+  schemaMemoKey?: string;
+};
+/**
+ * A library of inputs, keyed by the name of the type.
+ *
+ * @public
+ */
+/**
+ * The base interface definition for a FormKitPlugin. It's just a function that
+ * accepts a node argument.
+ *
+ * @public
+ */
+interface FormKitPlugin {
+  (node: FormKitNode): false | any | void;
+  library?: (node: FormKitNode) => void;
+}
+/**
+ * Text fragments are small pieces of text used for things like interface
+ * validation messages, or errors that may be exposed for modification or
+ * even translation.
+ *
+ * @public
+ */
+type FormKitTextFragment = Partial<FormKitMessageProps> & {
+  key: string;
+  value: string;
+  type: string;
+};
+/**
+ * The available hooks for middleware.
+ *
+ * @public
+ */
+interface FormKitHooks {
+  classes: FormKitDispatcher<{
+    property: string;
+    classes: Record<string, boolean>;
+  }>;
+  commit: FormKitDispatcher<any>;
+  error: FormKitDispatcher<string>;
+  setErrors: FormKitDispatcher<{
+    localErrors: ErrorMessages;
+    childErrors?: ErrorMessages;
+  }>;
+  init: FormKitDispatcher<FormKitNode>;
+  input: FormKitDispatcher<any>;
+  submit: FormKitDispatcher<Record<string, any>>;
+  message: FormKitDispatcher<FormKitMessage>;
+  prop: FormKitDispatcher<{
+    prop: string | symbol;
+    value: any;
+  }>;
+  text: FormKitDispatcher<FormKitTextFragment>;
+  schema: FormKitDispatcher<FormKitSchemaNode[] | FormKitSchemaCondition>;
+}
+/**
+ * The definition of a FormKitTrap. These are somewhat like methods on each
+ * FormKitNode. They are always symmetrical (get/set) — although it's acceptable
+ * for either to throw an Exception.
+ *
+ * @public
+ */
+interface FormKitTrap {
+  get: TrapGetter;
+  set: TrapSetter;
+}
+/**
+ * Describes the path to a particular node from the top of the tree.
+ *
+ * @public
+ */
+type FormKitAddress = Array<string | number>;
+/**
+ * These are the types of nodes that can be created. These are different from
+ * the type of inputs available and rather describe their purpose in the tree.
+ *
+ * @public
+ */
+type FormKitNodeType = 'input' | 'list' | 'group';
+/**
+ * FormKit inputs of type 'group' must have keyed values by default.
+ *
+ * @public
+ */
+/**
+ * Signature for any of the node's getter traps. Keep in mind that because these
+ * are traps and not class methods, their response types are declared explicitly
+ * in the FormKitNode interface.
+ *
+ * @public
+ */
+type TrapGetter = ((node: FormKitNode, context: FormKitContext, ...args: any[]) => unknown) | false;
+/**
+ * The signature for a node's trap setter — these are more rare than getter
+ * traps, but can be useful for blocking access to certain context properties
+ * or modifying the behavior of an assignment (ex. see setParent).
+ *
+ * @public
+ */
+type TrapSetter = ((node: FormKitNode, context: FormKitContext, property: string | number | symbol, value: any) => boolean | never) | false;
+/**
+ * The map signature for a node's traps Map.
+ *
+ * @public
+ */
+type FormKitTraps = Map<string | symbol, FormKitTrap>;
+/**
+ * General "app" like configuration options, these are automatically inherited
+ * by all children — they are not reactive.
+ *
+ * @public
+ */
+interface FormKitConfig {
+  /**
+   * The delimiter character to use for a node’s tree address. By default this
+   * is a dot `.`, but if you use dots in your input names you may want to
+   * change this to something else.
+   */
+  delimiter: string;
+  /**
+   * Classes to apply on the various sections. These classes are applied after
+   * rootClasses has already run.
+   */
+  classes?: Record<string, FormKitClasses | string | Record<string, boolean>>;
+  /**
+   * The rootClasses function is called to allocate the base layer of classes
+   * for each section. These classes can be further extended or modified by the
+   * classes config, classes prop, and section-class props.
+   */
+  rootClasses: ((sectionKey: string, node: FormKitNode) => Record<string, boolean>) | false;
+  /**
+   * A root config object. This object is usually the globally defined options.
+   */
+  rootConfig?: FormKitRootConfig;
+  /**
+   * The merge strategy is a map of names to merge strategies. The merge
+   * strategy is used to determine how a node’s value should be merged if there
+   * are 2 nodes with the same name.
+   */
+  mergeStrategy?: Record<string | symbol, 'synced'>;
+  [index: string]: any;
+}
+/**
+ * The user-land per-instance "props", which are generally akin to the props
+ * passed into components on the front end.
+ *
+ * @public
+ */
+type FormKitProps<V = unknown> = {
+  /**
+   * An instance of the current document’s root. When inside the context of a
+   * custom element, this will be the ShadowRoot. In most other instances this
+   * will be the Document. During SSR and other server-side contexts this will
+   * be undefined.
+   */
+  __root?: Document | ShadowRoot;
+  /**
+   * An object or array of "props" that should be applied to the input. When
+   * using Vue, these are pulled from the attrs and placed into the node.props
+   * according to the definition provided here.
+   */
+  readonly __propDefs: FormKitPseudoProps;
+  /**
+   * The total amount of time in milliseconds to debounce the input before the
+   * committing the value to the form tree.
+   */
+  delay: number;
+  /**
+   * The unique id of the input. These should *always* be globally unique.
+   */
+  id: string;
+  /**
+   * A function that defines how the validationLabel should be provided. By
+   * default this is the validation-label, label, then name in decreasing
+   * specificity.
+   */
+  validationLabelStrategy?: (node?: FormKitNode) => string;
+  /**
+   * An object of validation rules.
+   */
+  validationRules?: Record<string, (node: FormKitNode, ...args: any[]) => boolean | Promise<boolean>>;
+  /**
+   * An object of validation messages.
+   */
+  validationMessages?: Record<string, ((ctx: {
+    name: string;
+    args: any[];
+    node: FormKitNode;
+  }) => string) | string>;
+  /**
+   * The definition of the node’s input type (if it has one).
+   */
+  definition?: FormKitTypeDefinition<V>;
+  /**
+   * The framework’s context object. This is how FormKit’s core interacts with
+   * the front end framework (Vue/React/etc). This object is created by the
+   * component and is responsible for providing all the data to the framework
+   * for rendering and interaction.
+   */
+  context?: FormKitFrameworkContext;
+  /**
+   * The merge strategy that is applied to this specific node. It can only be
+   * inherited by a parent by using the mergeStrategy config option.
+   */
+  readonly mergeStrategy?: 'synced';
+  [index: string]: any;
+} & FormKitConfig;
+/**
+ * The interface of a FormKit node's context object. A FormKit node is a
+ * proxy of this object.
+ *
+ * @public
+ */
+interface FormKitContext {
+  /**
+   * A node’s internal disturbance counter.
+   */
+  _d: number;
+  /**
+   * A node’s internal event emitter.
+   */
+  _e: FormKitEventEmitter;
+  /**
+   * A unique identifier for a node.
+   */
+  uid: symbol;
+  /**
+   * A node’s internal disturbance counter promise.
+   */
+  _resolve: ((value: unknown) => void) | false;
+  /**
+   * A node’s internal input timeout.
+   */
+  _tmo: number | false;
+  /**
+   * A node’s internal pre-commit value.
+   */
+  _value: unknown;
+  /**
+   * An array of child nodes (groups and lists)
+   */
+  children: Array<FormKitNode | FormKitPlaceholderNode>;
+  /**
+   * Configuration state for a given tree.
+   */
+  config: FormKitConfig;
+  /**
+   * The context object of the current front end framework being used.
+   */
+  context?: FormKitFrameworkContext;
+  /**
+   * Set of hooks
+   */
+  hook: FormKitHooks;
+  /**
+   * Begins as false, set to true when the node is finished being created.
+   */
+  isCreated: boolean;
+  /**
+   * Boolean determines if the node is in a settled state or not.
+   */
+  isSettled: boolean;
+  /**
+   * A counting ledger for arbitrary message counters.
+   */
+  ledger: FormKitLedger;
+  /**
+   * The name of the input — should be treated as readonly.
+   */
+  name: string | symbol;
+  /**
+   * The parent of a node.
+   */
+  parent: FormKitNode | null;
+  /**
+   * A Set of plugins registered on this node that can be inherited by children.
+   */
+  plugins: Set<FormKitPlugin>;
+  /**
+   * An proxied object of props. These are typically provided by the adapter
+   * of choice.
+   */
+  props: Partial<FormKitProps>;
+  /**
+   * A promise that resolves when an input is in a settled state.
+   */
+  settled: Promise<unknown>;
+  /**
+   * The internal node store.
+   */
+  store: FormKitStore;
+  /**
+   * The traps available to a node.
+   */
+  traps: FormKitTraps;
+  /**
+   * The type of node, should only be 'input', 'list', or 'group'.
+   */
+  type: FormKitNodeType;
+  /**
+   * Only used on list nodes, this flag determines whether or not the list
+   * should sync its values with the underlying node children.
+   */
+  sync: boolean;
+  /**
+   * The actual value of the node.
+   */
+  value: unknown;
+}
+/**
+ * Context object to be created by and used by each respective UI framework. No
+ * values are created or output by FormKitCore, but this interface
+ * should be followed by each respective plugin.
+ *
+ * @public
+ */
+interface FormKitFrameworkContext<T = any> {
+  [index: string]: unknown;
+  /**
+   * The current "live" value of the input. Not debounced.
+   */
+  _value: T;
+  /**
+   * The root document or shadow root the input is inside. This can be set by
+   * using a higher-order `<FormKitRoot>` component.
+   */
+  __root?: Document | ShadowRoot;
+  /**
+   * An object of attributes that (generally) should be applied to the root
+   * <input> element.
+   */
+  attrs: Record<string, any>;
+  /**
+   * Classes to apply on the various sections.
+   */
+  classes: Record<string, string>;
+  /**
+   * Event handlers.
+   */
+  handlers: {
+    blur: (e?: FocusEvent) => void;
+    touch: () => void;
+    DOMInput: (e: Event) => void;
+  } & Record<string, (...args: any[]) => void>;
+  /**
+   * Utility functions, generally for use in the input’s schema.
+   */
+  fns: Record<string, (...args: any[]) => any>;
+  /**
+   * The help text of the input.
+   */
+  help?: string;
+  /**
+   * The unique id of the input. Should also be applied as the id attribute.
+   * This is generally required for accessibility reasons.
+   */
+  id: string;
+  /**
+   * An array of stable render keys for child nodes. Framework integrations use
+   * these to iterate over children without relying on array position.
+   */
+  items: Array<string | symbol>;
+  /**
+   * The label of the input.
+   */
+  label?: string;
+  /**
+   * A list of messages to be displayed on the input. Often these are validation
+   * messages and error messages, but other `visible` core node messages do also
+   * apply here. This object is only populated when the validation should be
+   * actually displayed.
+   */
+  messages: Record<string, FormKitMessage>;
+  /**
+   * The core node of this input.
+   */
+  node: FormKitNode;
+  /**
+   * If this input type accepts options (like select lists and checkboxes) then
+   * this will be populated with a properly structured list of options.
+   */
+  options?: Array<Record<string, any> & {
+    label: string;
+    value: any;
+  }>;
+  /**
+   * Whether or not to render messages in the standard location.
+   */
+  defaultMessagePlacement: boolean;
+  /**
+   * A record of slots that have been passed into the top level component
+   * responsible for creating the node.
+   */
+  slots: Record<string, CallableFunction>;
+  /**
+   * A collection of state trackers/details about the input.
+   */
+  state: FormKitFrameworkContextState;
+  /**
+   * The type of input "text" or "select" (retrieved from node.props.type). This
+   * is not the core node type (input, group, or list).
+   */
+  type: string;
+  /**
+   * Translated ui messages that are not validation related. These are generally
+   * used for interface messages like "loading" or "saving".
+   */
+  ui: Record<string, FormKitMessage>;
+  /**
+   * The current committed value of the input. This is the value that should be
+   * used for most use cases.
+   */
+  value: T;
+}
+/**
+ * The state inside a node’s framework context. Usually used to track things
+ * like blurred and validity states.
+ *
+ * @public
+ */
+interface FormKitFrameworkContextState {
+  /**
+   * If the input has been blurred.
+   */
+  blurred: boolean;
+  /**
+   * True when these conditions are met:
+   *
+   * Either:
+   * - The input has validation rules
+   * - The validation rules are all passing
+   * - There are no errors on the input
+   * Or:
+   * - The input has no validation rules
+   * - The input has no errors
+   * - The input is dirty and has a value
+   *
+   * This is not intended to be used on forms/groups/lists but instead on
+   * individual inputs. Imagine placing a green checkbox next to each input
+   * when the user filled it out correctly — thats what these are for.
+   */
+  complete: boolean;
+  /**
+   * If the input has had a value typed into it or a change made to it.
+   */
+  dirty: boolean;
+  /**
+   * If the input has explicit errors placed on it, or in the case of a group,
+   * list, or form, this is true if any children have errors on them.
+   */
+  errors: boolean;
+  /**
+   * Determines if the input should be considered "invalid" — note that this
+   * is not the opposite of the valid state. A valid input is one where the
+   * input is not loading, not pending validation, not unsettled, and
+   * passes all validation rules. An invalid input is one whose validation
+   * rules are not explicitly not passing, and those rules are visible to the user.
+   */
+  invalid: boolean;
+  /**
+   * Whether or not the input includes the "required" validation rule. This rule
+   * is uniquely called out for accessibility reasons and should be used to
+   * power the `aria-required` attribute.
+   */
+  required: boolean;
+  /**
+   * True when the input has validation rules. Has nothing to do with the
+   * state of those validation rules.
+   */
+  rules: boolean;
+  /**
+   * True when the input has completed its internal debounce cycle and the
+   * value was committed to the form.
+   */
+  settled: boolean;
+  /**
+   * If the form has been submitted.
+   */
+  submitted: boolean;
+  /**
+   * If the input (or group/form/list) is passing all validation rules. In
+   * the case of groups, forms, and lists this includes the validation state
+   * of all its children.
+   */
+  valid: boolean;
+  /**
+   * If the validation-visibility has been satisfied and any validation
+   * messages should be displayed.
+   */
+  validationVisible: boolean;
+  /**
+   * Allow users to add their own arbitrary states.
+   */
+  [index: string]: boolean;
+}
+/**
+ * Options that can be used to instantiate a new node via `createNode()`.
+ *
+ * @public
+ */
+/**
+ * The callback type for node.each().
+ *
+ * @public
+ */
+interface FormKitChildCallback {
+  (child: FormKitNode): any;
+}
+/**
+ * A descriptor of a child value, generally passed up a node tree.
+ *
+ * @public
+ */
+interface FormKitChildValue {
+  name: string | number | symbol;
+  value: any;
+  from?: number | symbol;
+}
+/**
+ * An empty interface for adding FormKit node extensions.
+ * @public
+ */
+interface FormKitNodeExtensions {}
+/**
+ * FormKit's Node object produced by createNode(). Every `<FormKit />` input has
+ * 1 FormKitNode ("core node") associated with it. All inputs, forms, and groups
+ * are instances of nodes. Read more about core nodes in the
+ * {@link https://formkit.com/essentials/architecture#node | architecture
+ * documentation.}
+ *
+ * @param add -
+ * Add a child to a node. The node must be a group or list.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * add: (node: FormKitNode, index?: number) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - node — A {@link FormKitNode | FormKitNode}.
+ * - index *optional* — A index to where it will added to.
+ *
+ * #### Returns
+ *
+ * The added {@link FormKitNode | FormKitNode}.
+ *
+ * @param address -
+ * The address of the current node from the root of the tree.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * address: FormKitAddress
+ * ```
+ *
+ * #### Returns
+ *
+ * A {@link FormKitAddress | FormKitAddress}.
+ *
+ * @param addProps -
+ * Adds props to the given node by removing them from node.props.attrs and
+ * moving them to the top-level node.props object.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * addProps: (props: string[]) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `props` — An array of strings to be added as keys for props.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param at -
+ * Gets a node at another address. Addresses are dot-syntax paths (or arrays) of node names.
+ * For example: `form.users.0.first_name`. There are a few "special" traversal tokens as well:
+ *
+ * - `$root` — Selects the root node.
+ * - `$parent` — Selects the parent node.
+ * - `$self` — Selects the current node.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * at: (address: FormKitAddress | '$root' | '$parent' | '$self' | (string & {})) => FormKitNode | undefined
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `address` — An valid string or {@link FormKitAddress | FormKitAddress}.
+ *
+ * #### Returns
+ *
+ * The found {@link FormKitNode | FormKitNode} or `undefined`.
+ *
+ * @param children -
+ * An array of child nodes (groups and lists).
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * children: Array<FormKitNode>
+ * ```
+ *
+ * #### Returns
+ *
+ * An array of {@link FormKitNode | FormKitNode}.
+ *
+ * @param clearErrors -
+ * Clears the errors of the node, and optionally all the children.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * clearErrors: (clearChildren?: boolean, sourceKey?: string) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `clearChildren` *optional* — If it should clear the children.
+ * - `sourceKey` *optional* — A source key to use for reset.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param config -
+ * An object of {@link FormKitConfig | FormKitConfig} that is shared tree-wide
+ * with various configuration options that should be applied to the entire tree.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * config: FormKitConfig
+ * ```
+ *
+ * #### Returns
+ *
+ * A {@link FormKitConfig | FormKitConfig}.
+ *
+ * @param define -
+ * Defines the current input's library type definition including node type,
+ * schema, and props.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * define: (definition: FormKitTypeDefinition) => void
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `definition` — A {@link FormKitTypeDefinition | FormKitTypeDefinition}.
+ *
+ * @param destroy -
+ * Removes the node from the global registry, its parent, and emits the
+ * 'destroying' event.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * destroy: () => void
+ * ```
+ *
+ * @param each -
+ * Perform given callback on each of the given node's children.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * each: (callback: FormKitChildCallback) => void
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `callback` — A {@link FormKitChildCallback | FormKitChildCallback} to be called for each child.
+ *
+ * @param emit -
+ * Emit an event from the node so it can be listened by {@link FormKitNode | on}.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * emit: (event: string, payload?: any, bubble?: boolean, meta: Record<string, unknown>) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `event` — The event name to be emitted.
+ * - `payload` *optional* — A value to be passed together with the event.
+ * - `bubble` *optional* — If the event should bubble to the parent.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param extend -
+ * Extend a {@link FormKitNode | FormKitNode} by adding arbitrary properties
+ * that are accessible via `node.{property}()`.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * extend: (property: string, trap: FormKitTrap) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `property` — The property to add the core node (`node.{property}`).
+ * - `trap` — An object with a get and set property.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param find -
+ * Within a given tree, find a node matching a given selector. Selectors can be simple strings or a function.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * find: (
+ *  selector: string,
+ *  searcher?: keyof FormKitNode | FormKitSearchFunction
+ * ) => FormKitNode | undefined
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `selector` — A selector string.
+ * - `searcher` *optional* — A keyof {@link FormKitNode | FormKitNode} or {@link FormKitSearchFunction | FormKitSearchFunction}.
+ *
+ * #### Returns
+ *
+ * The found {@link FormKitNode | FormKitNode} or `undefined`.
+ *
+ * @param hook -
+ * Set of hooks.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * hook: FormKitHooks
+ * ```
+ *
+ * #### Returns
+ *
+ * The {@link FormKitHooks | FormKitHooks}.
+ *
+ * @param index -
+ * The index of a node compared to its siblings. This is only applicable in cases where a node is a child of a list.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * index: number
+ * ```
+ *
+ * #### Returns
+ *
+ * A `number`.
+ *
+ * @param input -
+ * The function used to set the value of a node. All changes to a node's value
+ * should use this function as it ensures the tree's state is always fully tracked.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * input: (value: unknown, async?: boolean) => Promise<unknown>
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `value` — Any value to used for the node.
+ * - `async` *optional* — If the input should happen asynchronously.
+ *
+ * #### Returns
+ *
+ * A `Promise<unknown>`.
+ *
+ * @param isCreated -
+ * Begins as false, set to true when the node is finished being created.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * isCreated: boolean
+ * ```
+ *
+ * #### Returns
+ *
+ * A `boolean`.
+ *
+ * @param isSettled -
+ * Boolean reflecting the settlement state of the node and its subtree.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * isSettled: boolean
+ * ```
+ *
+ * #### Returns
+ *
+ * A `boolean`.
+ *
+ * @param ledger -
+ * A counting ledger for arbitrary message counters.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * ledger: FormKitLedger
+ * ```
+ *
+ * #### Returns
+ *
+ * A {@link FormKitLedger | FormKitLedger}.
+ *
+ * @param name -
+ * The name of the input in the node tree. When a node is a child of a list,
+ * this automatically becomes its index.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * name: string
+ * ```
+ *
+ * #### Returns
+ *
+ * A `string`.
+ *
+ * @param off -
+ * Removes an event listener by its token.
+ * Receipts can be shared among many event listeners by explicitly declaring the "receipt" property of the listener function.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * off: (receipt: string) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `receipt` — A receipt generated by the `on` function.
+ *
+ * #### Returns
+ *
+ * A receipt `string`.
+ *
+ * @param on -
+ * Adds an event listener for a given event, and returns a "receipt" which is a random string token.
+ * This token should be used to remove the listener in the future.
+ * Alternatively you can assign a "receipt" property to the listener function and that receipt will be used instead.
+ * This allows multiple listeners to all be de-registered with a single off() call if they share the same receipt.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * on: (eventName: string, listener: FormKitEventListener, pos: 'push' | 'unshift') => string
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `eventName` — The event name to listen to.
+ * - `listener` — A {@link FormKitEventListener | FormKitEventListener} to run when the event happens.
+ *
+ * #### Returns
+ *
+ * A receipt `string`.
+ *
+ * @param parent -
+ * The parent of a node.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * parent: FormKitNode | null
+ * ```
+ *
+ * #### Returns
+ *
+ * If found a {@link FormKitNode | FormKitNode} or `null`.
+ *
+ * @param props -
+ * An proxied object of props. These are typically provided by the adapter
+ * of choice.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * props: Partial<FormKitProps>
+ * ```
+ *
+ * #### Returns
+ *
+ * An optional list of {@link FormKitProps | FormKitProps}.
+ *
+ * @param remove -
+ * Removes a child from the node.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * remove: (node: FormKitNode) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `node` — A {@link FormKitNode | FormKitNode} to be removed.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param reset -
+ * Resets the node’s value back to its original value.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * reset: () => FormKitNode
+ * ```
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param root -
+ * Retrieves the root node of a tree. This is accomplished via tree-traversal
+ * on-request, and as such should not be used in frequently called functions.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * root: FormKitNode
+ * ```
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param setErrors -
+ * Sets errors on the input, and optionally to child inputs.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * setErrors: (localErrors: ErrorMessages, childErrors?: ErrorMessages) => void
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `localErrors` — A {@link ErrorMessages | ErrorMessages} to be used.
+ * - `childErrors` *optional* — A {@link ErrorMessages | ErrorMessages} to be used for children.
+ *
+ * @param settled -
+ * A promise that resolves when a node and its entire subtree is settled.
+ * In other words — all the inputs are done committing their values.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * settled: Promise<unknown>
+ * ```
+ *
+ * #### Returns
+ *
+ * A `Promise<unknown>`.
+ *
+ * @param store -
+ * The internal node store.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * store: FormKitStore
+ * ```
+ *
+ * #### Returns
+ *
+ * A {@link FormKitStore | FormKitStore}.
+ *
+ * @param submit -
+ * Triggers a submit event on the nearest form.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * submit: () => void
+ * ```
+ *
+ * @param t -
+ * A text or translation function that exposes a given string to the "text"
+ * hook. All text shown to users should be passed through this function
+ * before being displayed — especially for core and plugin authors.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * t: (key: string | FormKitTextFragment) => string
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `key` — A key or a {@link FormKitTextFragment | FormKitTextFragment} to find the translation for.
+ *
+ * #### Returns
+ *
+ * The translated `string`.
+ *
+ * @param type -
+ * The type of node, should only be 'input', 'list', or 'group'.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * type: FormKitNodeType
+ * ```
+ *
+ * #### Returns
+ *
+ * A {@link FormKitNodeType | FormKitNodeType}.
+ *
+ * @param use -
+ * Registers a new plugin on the node and its subtree.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * use: (
+ *  plugin: FormKitPlugin | FormKitPlugin[] | Set<FormKitPlugin>,
+ *  run?: boolean,
+ *  library?: boolean
+ * ) => FormKitNode
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `plugin` — A {@link FormKitPlugin | FormKitPlugin} or an Array or Set of {@link FormKitPlugin | FormKitPlugin}.
+ * - `run` *optional* — Should the plugin be executed on creation.
+ * - `library` *optional* — Should the plugin's library function be executed on creation.
+ *
+ * #### Returns
+ *
+ * The {@link FormKitNode | FormKitNode}.
+ *
+ * @param value -
+ * The value of the input. This should never be directly modified. Any
+ * desired mutations should be made through {@link FormKitNode | input}.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * readonly value: unknown
+ * ```
+ *
+ * @param walk -
+ * Performs a function on every node in its subtree (but not the node itself).
+ * This is an expensive operation so it should be done very rarely and only lifecycle events that are relatively rare like boot up and shut down.
+ *
+ * #### Signature
+ *
+ * ```typescript
+ * walk: (callback: FormKitChildCallback, stopOnFalse?: boolean, recurseOnFalse?: boolean) => void
+ * ```
+ *
+ * #### Parameters
+ *
+ * - `callback` — A {@link FormKitChildCallback | FormKitChildCallback} to be executed for each child.
+ * - `stopOnFalse` *optional* — If it should stop when the return is false.
+ *
+ * @public
+ */
+type FormKitNode<V = unknown> = {
+  /**
+   * Boolean true indicating this object is a valid FormKitNode
+   */
+  readonly __FKNode__: true;
+  /**
+   * The value of the input. This should never be directly modified. Any
+   * desired mutations should be made through node.input()
+   */
+  readonly value: V;
+  /**
+   * The internal FormKitContext object — this is not a public API and should
+   * never be used outside of the core package itself. It is only here for
+   * internal use and as an escape hatch.
+   */
+  _c: FormKitContext;
+  /**
+   * Add a child to a node, the node must be a group or list.
+   */
+  add: (node: FormKitNode, index?: number) => FormKitNode;
+  /**
+   * Adds props to the given node by removing them from node.props.attrs and
+   * moving them to the top-level node.props object.
+   */
+  addProps: (props: FormKitPseudoProps) => FormKitNode;
+  /**
+   * Gets a node at another address. Addresses are dot-syntax paths (or arrays)
+   * of node names. For example: form.users.0.first_name. There are a few
+   * "special" traversal tokens as well:
+   * - $root - Selects the root node
+   * - $parent - Selects the parent node
+   * - $self — Selects the current node
+   */
+  at: (address: FormKitAddress | '$root' | '$parent' | '$self' | (string & {})) => FormKitNode | undefined;
+  /**
+   * The address of the current node from the root of the tree.
+   */
+  address: FormKitAddress;
+  /**
+   * An internal function used to bubble an event from a child to a parent.
+   */
+  bubble: (event: FormKitEvent) => FormKitNode;
+  /**
+   * An internal mechanism for calming a disturbance — which is a mechanism
+   * used to know the state of input settlement in the tree.
+   */
+  calm: (childValue?: FormKitChildValue) => FormKitNode;
+  /**
+   * Clears the errors of the node, and optionally all the children.
+   */
+  clearErrors: (clearChildren?: boolean, sourceKey?: string) => FormKitNode;
+  /**
+   * An object that is shared tree-wide with various configuration options that
+   * should be applied to the entire tree.
+   */
+  config: FormKitConfig;
+  /**
+   * Defines the current input's library type definition — including node type,
+   * schema, and props.
+   */
+  define: (definition: FormKitTypeDefinition<V>) => void;
+  /**
+   * Increments a disturbance. A disturbance is a record that the input or a
+   * member of its subtree is no longer "settled". Disturbed nodes are ones
+   * that have had their value modified, but have not yet committed that value
+   * to the rest of the tree.
+   */
+  disturb: () => FormKitNode;
+  /**
+   * Removes the node from the global registry, its parent, and emits the
+   * 'destroying' event.
+   */
+  destroy: () => void;
+  /**
+   * Perform given callback on each of the given node's children.
+   */
+  each: (callback: FormKitChildCallback) => void;
+  /**
+   * Emit an event from the node.
+   */
+  emit: (event: string, payload?: any, bubble?: boolean, meta?: Record<string, unknown>) => FormKitNode;
+  /**
+   * Extend the core node by giving it a key and a trap.
+   */
+  extend: (key: string, trap: FormKitTrap) => FormKitNode;
+  /**
+   * Within a given tree, find a node matching a given selector. Selectors
+   * can be simple strings or a function.
+   */
+  find: (selector: string, searcher?: keyof FormKitNode | FormKitSearchFunction) => FormKitNode | undefined;
+  /**
+   * An internal mechanism to hydrate values down a node tree.
+   */
+  hydrate: () => FormKitNode;
+  /**
+   * The index of a node compared to its siblings. This is only applicable in
+   * cases where a node is a child of a list.
+   */
+  index: number;
+  /**
+   * The function used to set the value of a node. All changes to a node's value
+   * should use this function as it ensures the tree's state is always fully
+   * tracked.
+   */
+  input: (value: unknown, async?: boolean) => Promise<unknown>;
+  /**
+   * The name of the input in the node tree. When a node is a child of a list,
+   * this automatically becomes its index.
+   */
+  name: string;
+  /**
+   * Adds an event listener for a given event, and returns a "receipt" which is
+   * a random string token. This token should be used to remove the listener
+   * in the future. Alternatively you can assign a "receipt" property to the
+   * listener function and that receipt will be used instead — this allows
+   * multiple listeners to all be de-registered with a single off() call if they
+   * share the same receipt.
+   */
+  on: (eventName: string, listener: FormKitEventListener, pos?: 'push' | 'unshift') => string;
+  /**
+   * Removes an event listener by its token. Receipts can be shared among many
+   * event listeners by explicitly declaring the "receipt" property of the
+   * listener function.
+   */
+  off: (receipt: string) => FormKitNode;
+  /**
+   * Remove a child from a node.
+   */
+  remove: (node: FormKitNode | FormKitPlaceholderNode) => FormKitNode;
+  /**
+   * Retrieves the root node of a tree. This is accomplished via tree-traversal
+   * on-request, and as such should not be used in frequently called functions.
+   */
+  root: FormKitNode;
+  /**
+   * Resets the configuration of a node.
+   */
+  resetConfig: () => void;
+  /**
+   * Reset a node’s value back to its original value.
+   */
+  reset: (value?: unknown) => FormKitNode;
+  /**
+   * Sets errors on the input, and optionally to child inputs.
+   */
+  setErrors: (localErrors: ErrorMessages, childErrors?: ErrorMessages) => void;
+  /**
+   * A promise that resolves when a node and its entire subtree is settled.
+   * In other words — all the inputs are done committing their values.
+   */
+  settled: Promise<unknown>;
+  /**
+   * Triggers a submit event on the nearest form.
+   */
+  submit: () => void;
+  /**
+   * A text or translation function that exposes a given string to the "text"
+   * hook. All text shown to users should be passed through this function
+   * before being displayed — especially for core and plugin authors.
+   */
+  t: (key: string | FormKitTextFragment) => string;
+  /**
+   * Boolean reflecting the settlement state of the node and its subtree.
+   */
+  isSettled: boolean;
+  /**
+   * A unique identifier for the node.
+   */
+  uid: symbol;
+  /**
+   * Registers a new plugin on the node and its subtree.
+   * run = should the plugin be executed or not
+   * library = should the plugin's library function be executed (if there)
+   */
+  use: (plugin: FormKitPlugin | FormKitPlugin[] | Set<FormKitPlugin>, run?: boolean, library?: boolean) => FormKitNode;
+  /**
+   * Performs a function on every node in the subtree (not itself). This is an
+   * expensive operation so it should be done very rarely and only lifecycle
+   * events that are relatively rare like boot up and shut down.
+   */
+  walk: (callback: FormKitChildCallback, stopOnFalse?: boolean, skipSubtreeOnFalse?: boolean) => void;
+} & Omit<FormKitContext, 'value' | 'name' | 'config'> & FormKitNodeExtensions;
+/**
+ * A faux node that is used as a placeholder in the children node array during
+ * various node manipulations.
+ * @public
+ */
+interface FormKitPlaceholderNode<V = unknown> {
+  /**
+   * Flag indicating this is a placeholder.
+   */
+  __FKP: true;
+  /**
+   * A unique symbol identifying this placeholder.
+   */
+  uid: symbol;
+  /**
+   * The type of placeholder node, if relevant.
+   */
+  type: FormKitNodeType;
+  /**
+   * A value at the placeholder location.
+   */
+  value: V;
+  /**
+   * The uncommitted value, in a placeholder will always be the same
+   * as the value.
+   */
+  _value: V;
+  /**
+   * Artificially use a plugin (performs no-op)
+   */
+  use: (...args: any[]) => void;
+  /**
+   * Artificial props
+   */
+  props: Record<string, any>;
+  /**
+   * A name to use.
+   */
+  name: string;
+  /**
+   * Sets the value of the placeholder.
+   */
+  input: (value: unknown, async?: boolean) => Promise<unknown>;
+  /**
+   * A placeholder is always settled.
+   */
+  isSettled: boolean;
+}
+/**
+ * A prop definition for a pseudo prop that defines a type and a default value.
+ * @public
+ */
+type FormKitPseudoProp = {
+  boolean?: true;
+  default?: boolean;
+  setter?: undefined;
+  getter?: undefined;
+} | {
+  boolean?: undefined;
+  default?: unknown;
+  setter?: (value: unknown, node: FormKitNode) => unknown;
+  getter?: (value: unknown, node: FormKitNode) => unknown;
+};
+/**
+ * Pseudo props are "non-runtime" props. Props that are not initially declared
+ * as props, and are fetch out of the attrs object (in the context of VueJS).
+ * @public
+ */
+type FormKitPseudoProps = string[] | Record<PropertyKey, FormKitPseudoProp>;
+/**
+ * Breadth and depth-first searches can use a callback of this notation.
+ *
+ * @public
+ */
+type FormKitSearchFunction = (node: FormKitNode, searchTerm?: string | number) => boolean;
+/**
+ * If a node’s name is set to useIndex, it replaces the node’s name with the
+ * index of the node relative to its parent’s children.
+ *
+ * @internal
+ */
+//#endregion
+//#region src/plugin/types/user-tab.d.ts
+/**
+ * Defines a custom tab for the user detail page in the console.
+ *
+ * @remarks
+ * User tabs allow plugins to extend user management interfaces with custom
+ * functionality such as activity logs, custom user metadata, integration
+ * settings, or additional user management tools.
+ *
+ * @example
+ * ```typescript
+ * const activityTab: UserTab = {
+ *   id: 'activity-log',
+ *   label: 'Activity Log',
+ *   component: markRaw(ActivityLogComponent),
+ *   priority: 10,
+ *   permissions: ['system:users:view-activity']
+ * };
+ * ```
+ */
+interface UserTab {
+  /**
+   * Unique identifier for the user tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component typically receives the user object as a prop and should
+   * implement user-related functionality or display user-specific information.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Priority for ordering multiple user tabs.
+   * Higher priority tabs appear first (leftmost) in the tab navigation.
+   */
+  priority: number;
+}
+/**
+ * Defines a custom tab for the user profile page in the user center.
+ *
+ * @remarks
+ * User profile tabs allow plugins to extend the user-facing profile interface
+ * with custom sections such as social connections, preferences, achievements,
+ * subscription management, or personalization settings.
+ *
+ * @example
+ * ```typescript
+ * const preferencesTab: UserProfileTab = {
+ *   id: 'preferences',
+ *   label: 'Preferences',
+ *   component: markRaw(PreferencesComponent),
+ *   priority: 15
+ * };
+ * ```
+ */
+interface UserProfileTab {
+  /**
+   * Unique identifier for the user profile tab.
+   * Should follow a namespaced pattern to avoid conflicts (e.g., 'plugin-name:tab-id').
+   */
+  id: string;
+  /**
+   * Display label for the tab.
+   * This text will be shown in the tab navigation.
+   */
+  label: string;
+  /**
+   * The Vue component that renders the tab content.
+   * Must be wrapped with `markRaw` to prevent Vue from making it reactive.
+   *
+   * @remarks
+   * The component should provide user-facing functionality that allows users
+   * to view or modify their own profile information or settings.
+   */
+  component: Raw<Component>;
+  /**
+   * Optional array of permission identifiers required to view this tab.
+   * The tab will only be visible to users with at least one of these permissions.
+   */
+  permissions?: string[];
+  /**
+   * Priority for ordering multiple user profile tabs.
+   * Higher priority tabs appear first (leftmost) in the tab navigation.
+   */
+  priority: number;
+}
+//#endregion
+//#region src/plugin/types/ui-plugin-module.d.ts
+/**
+ * Represents a route record that will be appended to a parent route.
+ * Used to extend existing routes with additional child routes.
+ */
+interface RouteRecordAppend {
+  /**
+   * The name of the parent route to which this route will be appended.
+   */
+  parentName: NonNullable<RouteRecordName>;
+  /**
+   * The route definition to be appended as a child route.
+   */
+  route: RouteRecordRaw;
+}
+/**
+ * FormKit-related extensions provided by a UI plugin.
+ */
+interface PluginFormKit {
+  /**
+   * Custom FormKit input definitions registered when the plugin is activated.
+   *
+   * @remarks
+   * The key is the FormKit input type used by `$formkit` in schemas.
+   */
+  inputs?: Record<string, FormKitTypeDefinition>;
+}
+/**
+ * Defines extension points that plugins can hook into to extend Halo's functionality.
+ * Extension points follow a naming convention: `<feature>:<action>:<operation>`.
+ *
+ * @remarks
+ * Extension points are the primary mechanism for plugins to integrate with the Halo console and uc.
+ * Each extension point represents a specific place where plugins can inject custom functionality.
+ */
+interface ExtensionPoint {
+  /**
+   * Creates custom attachment selector providers.
+   * Allows plugins to provide alternative attachment selection interfaces.
+   *
+   * @returns An array of attachment select providers or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/attachment-selector-create
+   */
+  "attachment:selector:create"?: () => AttachmentSelectProvider[] | Promise<AttachmentSelectProvider[]>;
+  /**
+   * Creates custom editor providers.
+   * Allows plugins to register custom content editors.
+   *
+   * @returns An array of editor providers or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/editor-create
+   */
+  "editor:create"?: () => EditorProvider[] | Promise<EditorProvider[]>;
+  /**
+   * Creates tabs for the plugin's own settings page.
+   * Used to add configuration tabs within a plugin's detail view.
+   *
+   * @returns An array of plugin tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/plugin-self-tabs-create
+   */
+  "plugin:self:tabs:create"?: () => PluginTab[] | Promise<PluginTab[]>;
+  /**
+   * Creates extensions for the default rich-text editor.
+   * Allows plugins to extend the editor with custom nodes, marks, or functionality.
+   *
+   * @returns An array of editor extensions or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/default-editor-extension-create
+   */
+  "default:editor:extension:create"?: () => AnyExtension[] | Promise<AnyExtension[]>;
+  /**
+   * Creates comment subject reference providers.
+   * Allows plugins to define custom content types that can receive comments.
+   *
+   * @returns An array of comment subject reference providers.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/comment-subject-ref-create
+   */
+  "comment:subject-ref:create"?: () => CommentSubjectRefProvider[];
+  /**
+   * Replaces the default comment editor.
+   * Allows plugins to provide a custom comment editing interface.
+   *
+   * @returns A comment editor provider or a promise resolving to it.
+   */
+  "comment:editor:replace"?: () => CommentEditorProvider | Promise<CommentEditorProvider>;
+  /**
+   * Replaces the default comment list item content display.
+   * Allows plugins to customize how comment content is rendered in lists.
+   *
+   * @returns A comment content provider or a promise resolving to it.
+   */
+  "comment:list-item:content:replace"?: () => CommentContentProvider | Promise<CommentContentProvider>;
+  /**
+   * Creates tabs for the backup management page.
+   * Allows plugins to add custom backup-related functionality.
+   *
+   * @returns An array of backup tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/backup-tabs-create
+   */
+  "backup:tabs:create"?: () => BackupTab[] | Promise<BackupTab[]>;
+  /**
+   * Creates tabs for the plugin installation page.
+   * Allows plugins to add custom installation methods or configurations.
+   *
+   * @returns An array of plugin installation tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/plugin-installation-tabs-create
+   */
+  "plugin:installation:tabs:create"?: () => PluginInstallationTab[] | Promise<PluginInstallationTab[]>;
+  /**
+   * Creates custom operations for post list items.
+   * Allows plugins to add action buttons or menu items to post list rows.
+   *
+   * @param post - A reactive reference to the post object.
+   * @returns An array of operation items for the post.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/post-list-item-operation-create
+   */
+  "post:list-item:operation:create"?: (post: Ref<ListedPost>) => OperationItem<ListedPost>[];
+  /**
+   * Creates custom operations for single page list items.
+   * Allows plugins to add action buttons or menu items to single page list rows.
+   *
+   * @param singlePage - A reactive reference to the single page object.
+   * @returns An array of operation items for the single page.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/single-page-list-item-operation-create
+   */
+  "single-page:list-item:operation:create"?: (singlePage: Ref<ListedSinglePage>) => OperationItem<ListedSinglePage>[];
+  /**
+   * Creates custom operations for comment list items.
+   * Allows plugins to add action buttons or menu items to comment list rows.
+   *
+   * @param comment - A reactive reference to the comment object.
+   * @returns An array of operation items for the comment.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/comment-list-item-operation-create
+   */
+  "comment:list-item:operation:create"?: (comment: Ref<ListedComment>) => OperationItem<ListedComment>[];
+  /**
+   * Creates custom operations for reply list items.
+   * Allows plugins to add action buttons or menu items to reply list rows.
+   *
+   * @param reply - A reactive reference to the reply object.
+   * @returns An array of operation items for the reply.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/reply-list-item-operation-create
+   */
+  "reply:list-item:operation:create"?: (reply: Ref<ListedReply>) => OperationItem<ListedReply>[];
+  /**
+   * Creates custom operations for plugin list items.
+   * Allows plugins to add action buttons or menu items to plugin list rows.
+   *
+   * @param plugin - A reactive reference to the plugin object.
+   * @returns An array of operation items for the plugin.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/plugin-list-item-operation-create
+   */
+  "plugin:list-item:operation:create"?: (plugin: Ref<Plugin>) => OperationItem<Plugin>[];
+  /**
+   * Creates custom operations for backup list items.
+   * Allows plugins to add action buttons or menu items to backup list rows.
+   *
+   * @param backup - A reactive reference to the backup object.
+   * @returns An array of operation items for the backup.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/backup-list-item-operation-create
+   */
+  "backup:list-item:operation:create"?: (backup: Ref<Backup>) => OperationItem<Backup>[];
+  /**
+   * Creates custom operations for attachment list items.
+   * Allows plugins to add action buttons or menu items to attachment list rows.
+   *
+   * @param attachment - A reactive reference to the attachment object.
+   * @returns An array of operation items for the attachment.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/attachment-list-item-operation-create
+   */
+  "attachment:list-item:operation:create"?: (attachment: Ref<Attachment>) => OperationItem<Attachment>[];
+  /**
+   * Creates custom fields for plugin list items.
+   * Allows plugins to add custom columns or metadata fields to the plugin list display.
+   *
+   * @param plugin - A reactive reference to the plugin object.
+   * @returns An array of entity field items for the plugin.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/plugin-list-item-field-create
+   */
+  "plugin:list-item:field:create"?: (plugin: Ref<Plugin>) => EntityFieldItem[];
+  /**
+   * Creates custom fields for post list items.
+   * Allows plugins to add custom columns or metadata fields to the post list display.
+   *
+   * @param post - A reactive reference to the post object.
+   * @returns An array of entity field items for the post.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/post-list-item-field-create
+   */
+  "post:list-item:field:create"?: (post: Ref<ListedPost>) => EntityFieldItem[];
+  /**
+   * Creates custom fields for single page list items.
+   * Allows plugins to add custom columns or metadata fields to the single page list display.
+   *
+   * @param singlePage - A reactive reference to the single page object.
+   * @returns An array of entity field items for the single page.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/single-page-list-item-field-create
+   */
+  "single-page:list-item:field:create"?: (singlePage: Ref<ListedSinglePage>) => EntityFieldItem[];
+  /**
+   * Creates tabs for the theme list page.
+   * Allows plugins to add custom theme management or configuration sections.
+   *
+   * @returns An array of theme list tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/theme-list-tabs-create
+   */
+  "theme:list:tabs:create"?: () => ThemeListTab[] | Promise<ThemeListTab[]>;
+  /**
+   * Creates custom operations for theme list items.
+   * Allows plugins to add action buttons or menu items to theme list rows.
+   *
+   * @param theme - A reactive reference to the theme object.
+   * @returns An array of operation items for the theme.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/theme-list-item-operation-create
+   */
+  "theme:list-item:operation:create"?: (theme: Ref<Theme>) => OperationItem<Theme>[];
+  /**
+   * Creates tabs for the user detail page in the console.
+   * Allows plugins to add custom user management sections.
+   *
+   * @returns An array of user tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/user-detail-tabs-create
+   */
+  "user:detail:tabs:create"?: () => UserTab[] | Promise<UserTab[]>;
+  /**
+   * Creates tabs for the user profile page in the user center.
+   * Allows plugins to extend user profile settings and information.
+   *
+   * @returns An array of user profile tabs or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/uc-user-profile-tabs-create
+   */
+  "uc:user:profile:tabs:create"?: () => UserProfileTab[] | Promise<UserProfileTab[]>;
+  /**
+   * Creates custom dashboard widgets for the console.
+   * Allows plugins to add informational or interactive widgets to the main dashboard.
+   *
+   * @returns An array of dashboard widget definitions or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/dashboard-widgets#consoledashboardwidgets
+   */
+  "console:dashboard:widgets:create"?: () => DashboardWidgetDefinition[] | Promise<DashboardWidgetDefinition[]>;
+  /**
+   * Creates quick action items for internal dashboard widgets.
+   * Allows plugins to add quick access buttons or shortcuts to dashboard widgets.
+   *
+   * @returns An array of dashboard widget quick action items or a promise resolving to them.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui/dashboard-widgets#consoledashboardwidgetsinternalquick-actionitem
+   */
+  "console:dashboard:widgets:internal:quick-action:item:create"?: () => DashboardWidgetQuickActionItem[] | Promise<DashboardWidgetQuickActionItem[]>;
+}
+/**
+ * Defines the structure of a UI plugin module for the Halo console and user center.
+ *
+ * @see https://docs.halo.run/developer-guide/plugin/basics/ui/entry
+ */
+interface PluginModule {
+  /**
+   * FormKit integrations provided by the plugin.
+   */
+  formkit?: PluginFormKit;
+  /**
+   * Components that will be globally registered when the plugin is activated.
+   * These components can be used throughout the Halo console without explicit imports.
+   *
+   * @remarks
+   * The key is the component name (in kebab-case is recommended),
+   * and the value is the Vue component definition.
+   */
+  components?: Record<string, Component>;
+  /**
+   * Console routes that will be registered when the plugin is activated.
+   * Can be either standalone routes or routes that append to existing parent routes.
+   *
+   * @remarks
+   * - Use `RouteRecordRaw[]` for standalone routes
+   * - Use `RouteRecordAppend[]` to append routes to existing parent routes
+   * @see https://docs.halo.run/developer-guide/plugin/api-reference/ui/route
+   */
+  routes?: RouteRecordRaw[] | RouteRecordAppend[];
+  /**
+   * User center routes that will be registered when the plugin is activated.
+   * These routes are specifically for the user-facing area (UC).
+   *
+   * @remarks
+   * - Use `RouteRecordRaw[]` for standalone routes
+   * - Use `RouteRecordAppend[]` to append routes to existing parent routes
+   * @see https://docs.halo.run/developer-guide/plugin/api-reference/ui/route
+   */
+  ucRoutes?: RouteRecordRaw[] | RouteRecordAppend[];
+  /**
+   * Extension points that the plugin hooks into.
+   * This is where plugins register their custom functionality to extend Halo.
+   *
+   * @remarks
+   * Each extension point can provide custom functionality that integrates
+   * with specific parts of the Halo console.
+   * @see https://docs.halo.run/developer-guide/plugin/extension-points/ui
+   */
+  extensionPoints?: ExtensionPoint;
+}
+//#endregion
+//#region src/plugin/types/ui-plugin-entry.d.ts
+/**
+ * Helper function to define a Halo UI plugin module with type safety.
+ *
+ * @param plugin - The plugin module definition containing components, routes, and extension points.
+ * @returns The same plugin module, properly typed for Halo's plugin system.
+ *
+ * @remarks
+ * This function is a type-safe wrapper that provides IDE support and type checking
+ * for plugin definitions. It doesn't perform any runtime transformations, but ensures
+ * that the plugin structure conforms to the expected interface.
+ *
+ * @example
+ * ```typescript
+ * import { definePlugin } from "@halo-dev/ui-shared";
+ * import { markRaw } from "vue";
+ *
+ * export default definePlugin({
+ *   components: {
+ *     "my-widget": MyWidgetComponent
+ *   },
+ *   routes: [
+ *     {
+ *       path: "/my-plugin",
+ *       name: "MyPlugin",
+ *       component: MyPluginView
+ *     }
+ *   ],
+ *   extensionPoints: {
+ *     "post:list-item:operation:create": (post) => [
+ *       {
+ *         priority: 10,
+ *         component: markRaw(VButton),
+ *         label: "Custom Action",
+ *         action: () => {
+ *           console.log("Action triggered");
+ *         }
+ *       }
+ *     ]
+ *   }
+ * });
+ * ```
+ */
+declare function definePlugin(plugin: PluginModule): PluginModule;
+//#endregion
+//#region src/stores/types/slug.d.ts
+type ModeType = "UUID" | "shortUUID" | "timestamp" | "generateByTitle";
+declare enum FormType {
+  TAG = "Tag",
+  CATEGORY = "Category",
+  POST = "Post",
+  SINGLE_PAGE = "SinglePage"
+}
+//#endregion
+//#region src/stores/types/actuator.d.ts
+interface GlobalInfo {
+  externalUrl: string;
+  timeZone: string;
+  locale: string;
+  allowComments: boolean;
+  allowAnonymousComments: boolean;
+  allowRegistration: boolean;
+  favicon?: string;
+  postSlugGenerationStrategy: ModeType;
+  mustVerifyEmailOnRegistration: boolean;
+  siteTitle: string;
+}
+interface Info {
+  git?: Git;
+  build?: Build;
+  java: Java;
+  os: Os;
+  database: Database;
+}
+interface Database {
+  name: string;
+  version: string;
+}
+interface Commit {
+  id: string;
+  time: Date;
+}
+interface Git {
+  branch: string;
+  commit: Commit;
+}
+interface Build {
+  artifact: string;
+  name: string;
+  time: Date;
+  version: string;
+  group: string;
+}
+interface Vendor {
+  name: string;
+  version: string;
+}
+interface Runtime {
+  name: string;
+  version: string;
+}
+interface Jvm {
+  name: string;
+  vendor: string;
+  version: string;
+}
+interface Java {
+  version: string;
+  vendor: Vendor;
+  runtime: Runtime;
+  jvm: Jvm;
+}
+interface Os {
+  name: string;
+  version: string;
+  arch: string;
+}
+interface Tag {
+  key: string;
+  value: string;
+}
+interface StartupStep {
+  name: string;
+  id: number;
+  tags: Tag[];
+  parentId?: number;
+}
+interface Event$1 {
+  endTime: Date;
+  duration: string;
+  startTime: Date;
+  startupStep: StartupStep;
+}
+interface Timeline {
+  startTime: Date;
+  events: Event$1[];
+}
+interface Startup {
+  springBootVersion: string;
+  timeline: Timeline;
+}
+//#endregion
+//#region src/stores/index.d.ts
+/**
+ * Collection of Pinia stores for shared application state.
+ *
+ * @remarks
+ * These stores provide centralized state management for common data
+ * that needs to be accessed across multiple components and plugins.
+ */
+declare const stores: {
+  /**
+   * Store for managing the current authenticated user's information.
+   *
+   * @remarks
+   * This store provides access to the current user's details and authentication state.
+   * It includes helper methods to fetch the latest user information from the server.
+   *
+   * @example
+   * ```typescript
+   * import { stores } from "@halo-dev/ui-shared";
+   *
+   * const userStore = stores.currentUser();
+   *
+   * // Fetch current user info
+   * await userStore.fetchCurrentUser();
+   *
+   * // Access user data
+   * console.log(userStore.currentUser?.user.metadata.name);
+   * console.log(userStore.isAnonymous); // Check if user is anonymous
+   * ```
+   */
+  currentUser: import("pinia").StoreDefinition<"currentUser", Pick<{
+    currentUser: import("vue").Ref<DetailedUser | undefined, DetailedUser | undefined>;
+    isAnonymous: import("vue").Ref<boolean, boolean>;
+    fetchCurrentUser: () => Promise<void>;
+  }, "currentUser" | "isAnonymous">, Pick<{
+    currentUser: import("vue").Ref<DetailedUser | undefined, DetailedUser | undefined>;
+    isAnonymous: import("vue").Ref<boolean, boolean>;
+    fetchCurrentUser: () => Promise<void>;
+  }, never>, Pick<{
+    currentUser: import("vue").Ref<DetailedUser | undefined, DetailedUser | undefined>;
+    isAnonymous: import("vue").Ref<boolean, boolean>;
+    fetchCurrentUser: () => Promise<void>;
+  }, "fetchCurrentUser">>;
+  /**
+   * Store for managing global system information and configuration.
+   *
+   * @remarks
+   * This store provides access to global system settings, configuration,
+   * and metadata that are shared across the entire application.
+   *
+   * @example
+   * ```typescript
+   * import { stores } from "@halo-dev/ui-shared";
+   *
+   * const globalInfoStore = stores.globalInfo();
+   *
+   * // Fetch global info
+   * await globalInfoStore.fetchGlobalInfo();
+   *
+   * // Access global settings
+   * console.log(globalInfoStore.globalInfo?.externalUrl);
+   * console.log(globalInfoStore.globalInfo?.siteTitle);
+   * console.log(globalInfoStore.globalInfo?.allowRegistration);
+   * ```
+   */
+  globalInfo: import("pinia").StoreDefinition<"global-info", Pick<{
+    globalInfo: import("vue").Ref<GlobalInfo | undefined, GlobalInfo | undefined>;
+    fetchGlobalInfo: () => Promise<void>;
+  }, "globalInfo">, Pick<{
+    globalInfo: import("vue").Ref<GlobalInfo | undefined, GlobalInfo | undefined>;
+    fetchGlobalInfo: () => Promise<void>;
+  }, never>, Pick<{
+    globalInfo: import("vue").Ref<GlobalInfo | undefined, GlobalInfo | undefined>;
+    fetchGlobalInfo: () => Promise<void>;
+  }, "fetchGlobalInfo">>;
+};
+//#endregion
+//#region src/types/menus.d.ts
+type CoreMenuGroupId = "dashboard" | "content" | "interface" | "system" | "tool";
+interface MenuGroupType {
+  id: CoreMenuGroupId | string;
+  name?: string;
+  priority: number;
+  items?: MenuItemType[];
+}
+interface MenuItemType {
+  name: string;
+  path: string;
+  mobile?: boolean;
+  icon?: Component;
+  meta?: Record<string, unknown>;
+  children?: MenuItemType[];
+}
+//#endregion
+//#region src/utils/attachment.d.ts
+/**
+ * Mapping of thumbnail size enums to their corresponding widths in pixels
+ *
+ * @remarks
+ * - XL: 1600px - Extra large thumbnails
+ * - L: 1200px - Large thumbnails
+ * - M: 800px - Medium thumbnails
+ * - S: 400px - Small thumbnails
+ */
+declare const THUMBNAIL_WIDTH_MAP: Record<GetThumbnailByUriSizeEnum, number>;
+declare class AttachmentUtils {
+  /**
+   * Generates a thumbnail URL for the given image URL with the specified size
+   *
+   * @param url - The original image URL (can be absolute, relative, or external)
+   * @param size - The desired thumbnail size (XL, L, M, or S)
+   * @returns The thumbnail URL with width parameter, or original URL if size is invalid
+   *
+   * @remarks
+   * This method handles three scenarios:
+   * 1. If URL starts with current origin: Appends `?width={size}` query parameter
+   * 2. If URL is a relative path (starts with "/"): Appends `?width={size}` query parameter
+   * 3. If URL is external: Routes through Halo's thumbnail API endpoint
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   *
+   * // Local image
+   * utils.attachment.getThumbnailUrl("/uploads/image.jpg", "M");
+   * // Returns: "/uploads/image.jpg?width=800"
+   *
+   * // Same origin image
+   * utils.attachment.getThumbnailUrl("https://example.com/image.jpg", "S");
+   * // Returns: "https://example.com/image.jpg?width=400" (if current origin is example.com)
+   *
+   * // External image
+   * utils.attachment.getThumbnailUrl("https://external.com/image.jpg", "L");
+   * // Returns: "/apis/api.storage.halo.run/v1alpha1/thumbnails/-/via-uri?uri=https%3A%2F%2Fexternal.com%2Fimage.jpg&width=1200"
+   * ```
+   */
+  getThumbnailUrl(url: string, size: GetThumbnailByUriSizeEnum): string;
+  /**
+   * Extracts the URL from an attachment-like object
+   *
+   * @param attachment - The attachment object (can be a string URL, Attachment object, or AttachmentSimple)
+   * @returns The URL string extracted from the attachment
+   * @throws {Error} When the attachment type is invalid or unrecognized
+   *
+   * @remarks
+   * This method handles three types of attachments:
+   * 1. String: Returns the string directly as URL
+   * 2. Attachment object (with "spec"): Returns the permalink from status
+   * 3. AttachmentSimple (with "url"): Returns the url property
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   *
+   * // String URL
+   * utils.attachment.getUrl("https://example.com/image.jpg");
+   * // Returns: "https://example.com/image.jpg"
+   *
+   * // Attachment object
+   * utils.attachment.getUrl(attachmentObject);
+   * // Returns: attachmentObject.status?.permalink
+   *
+   * // AttachmentSimple object
+   * utils.attachment.getUrl({ url: "https://example.com/image.jpg" });
+   * // Returns: "https://example.com/image.jpg"
+   * ```
+   */
+  getUrl(attachment: AttachmentLike): string | undefined;
+  /**
+   * Converts an attachment-like object to a simplified attachment format
+   *
+   * @param attachment - The attachment object to convert (can be a string URL, Attachment object, or AttachmentSimple)
+   * @returns A simplified attachment object with url, alt, and mediaType properties, or undefined
+   * @throws {Error} When the attachment type is invalid or unrecognized
+   *
+   * @remarks
+   * This method normalizes different attachment formats into a consistent AttachmentSimple structure:
+   * 1. String: Converts to object with only url property
+   * 2. Attachment object (with "spec"): Extracts permalink, displayName, and mediaType
+   * 3. AttachmentSimple (with "url"): Returns as-is since it's already in the correct format
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   *
+   * // String URL
+   * utils.attachment.convertToSimple("https://example.com/image.jpg");
+   * // Returns: { url: "https://example.com/image.jpg" }
+   *
+   * // Attachment object
+   * utils.attachment.convertToSimple(attachmentObject);
+   * // Returns: {
+   * //   url: attachmentObject.status?.permalink || "",
+   * //   alt: attachmentObject.spec.displayName,
+   * //   mediaType: attachmentObject.spec.mediaType
+   * // }
+   *
+   * // AttachmentSimple object
+   * utils.attachment.convertToSimple({ url: "https://example.com/image.jpg", alt: "Image" });
+   * // Returns: { url: "https://example.com/image.jpg", alt: "Image" }
+   * ```
+   */
+  convertToSimple(attachment: AttachmentLike): AttachmentSimple | undefined;
+}
+//#endregion
+//#region ../../node_modules/.pnpm/dayjs@1.11.19/node_modules/dayjs/index.d.ts
+declare function dayjs(date?: dayjs.ConfigType): dayjs.Dayjs;
+declare function dayjs(date?: dayjs.ConfigType, format?: dayjs.OptionType, strict?: boolean): dayjs.Dayjs;
+declare function dayjs(date?: dayjs.ConfigType, format?: dayjs.OptionType, locale?: string, strict?: boolean): dayjs.Dayjs;
+declare namespace dayjs {
+  interface ConfigTypeMap {
+    default: string | number | Date | Dayjs | null | undefined;
+  }
+  export type ConfigType = ConfigTypeMap[keyof ConfigTypeMap];
+  export interface FormatObject {
+    locale?: string;
+    format?: string;
+    utc?: boolean;
+  }
+  export type OptionType = FormatObject | string | string[];
+  export type UnitTypeShort = 'd' | 'D' | 'M' | 'y' | 'h' | 'm' | 's' | 'ms';
+  export type UnitTypeLong = 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year' | 'date';
+  export type UnitTypeLongPlural = 'milliseconds' | 'seconds' | 'minutes' | 'hours' | 'days' | 'months' | 'years' | 'dates';
+  export type UnitType = UnitTypeLong | UnitTypeLongPlural | UnitTypeShort;
+  export type OpUnitType = UnitType | "week" | "weeks" | 'w';
+  export type QUnitType = UnitType | "quarter" | "quarters" | 'Q';
+  export type ManipulateType = Exclude<OpUnitType, 'date' | 'dates'>;
+  class Dayjs {
+    constructor(config?: ConfigType);
+    /**
+     * All Day.js objects are immutable. Still, `dayjs#clone` can create a clone of the current object if you need one.
+     * ```
+     * dayjs().clone()// => Dayjs
+     * dayjs(dayjs('2019-01-25')) // passing a Dayjs object to a constructor will also clone it
+     * ```
+     * Docs: https://day.js.org/docs/en/parse/dayjs-clone
+     */
+    clone(): Dayjs;
+    /**
+     * This returns a `boolean` indicating whether the Day.js object contains a valid date or not.
+     * ```
+     * dayjs().isValid()// => boolean
+     * ```
+     * Docs: https://day.js.org/docs/en/parse/is-valid
+     */
+    isValid(): boolean;
+    /**
+     * Get the year.
+     * ```
+     * dayjs().year()// => 2020
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/year
+     */
+    year(): number;
+    /**
+     * Set the year.
+     * ```
+     * dayjs().year(2000)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/year
+     */
+    year(value: number): Dayjs;
+    /**
+     * Get the month.
+     *
+     * Months are zero indexed, so January is month 0.
+     * ```
+     * dayjs().month()// => 0-11
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/month
+     */
+    month(): number;
+    /**
+     * Set the month.
+     *
+     * Months are zero indexed, so January is month 0.
+     *
+     * Accepts numbers from 0 to 11. If the range is exceeded, it will bubble up to the next year.
+     * ```
+     * dayjs().month(0)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/month
+     */
+    month(value: number): Dayjs;
+    /**
+     * Get the date of the month.
+     * ```
+     * dayjs().date()// => 1-31
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/date
+     */
+    date(): number;
+    /**
+     * Set the date of the month.
+     *
+     * Accepts numbers from 1 to 31. If the range is exceeded, it will bubble up to the next months.
+     * ```
+     * dayjs().date(1)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/date
+     */
+    date(value: number): Dayjs;
+    /**
+     * Get the day of the week.
+     *
+     * Returns numbers from 0 (Sunday) to 6 (Saturday).
+     * ```
+     * dayjs().day()// 0-6
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/day
+     */
+    day(): 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    /**
+     * Set the day of the week.
+     *
+     * Accepts numbers from 0 (Sunday) to 6 (Saturday). If the range is exceeded, it will bubble up to next weeks.
+     * ```
+     * dayjs().day(0)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/day
+     */
+    day(value: number): Dayjs;
+    /**
+     * Get the hour.
+     * ```
+     * dayjs().hour()// => 0-23
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/hour
+     */
+    hour(): number;
+    /**
+     * Set the hour.
+     *
+     * Accepts numbers from 0 to 23. If the range is exceeded, it will bubble up to the next day.
+     * ```
+     * dayjs().hour(12)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/hour
+     */
+    hour(value: number): Dayjs;
+    /**
+     * Get the minutes.
+     * ```
+     * dayjs().minute()// => 0-59
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/minute
+     */
+    minute(): number;
+    /**
+     * Set the minutes.
+     *
+     * Accepts numbers from 0 to 59. If the range is exceeded, it will bubble up to the next hour.
+     * ```
+     * dayjs().minute(59)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/minute
+     */
+    minute(value: number): Dayjs;
+    /**
+     * Get the seconds.
+     * ```
+     * dayjs().second()// => 0-59
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/second
+     */
+    second(): number;
+    /**
+     * Set the seconds.
+     *
+     * Accepts numbers from 0 to 59. If the range is exceeded, it will bubble up to the next minutes.
+     * ```
+     * dayjs().second(1)// Dayjs
+     * ```
+     */
+    second(value: number): Dayjs;
+    /**
+     * Get the milliseconds.
+     * ```
+     * dayjs().millisecond()// => 0-999
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/millisecond
+     */
+    millisecond(): number;
+    /**
+     * Set the milliseconds.
+     *
+     * Accepts numbers from 0 to 999. If the range is exceeded, it will bubble up to the next seconds.
+     * ```
+     * dayjs().millisecond(1)// => Dayjs
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/millisecond
+     */
+    millisecond(value: number): Dayjs;
+    /**
+     * Generic setter, accepting unit as first argument, and value as second, returns a new instance with the applied changes.
+     *
+     * In general:
+     * ```
+     * dayjs().set(unit, value) === dayjs()[unit](value)
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     * ```
+     * dayjs().set('date', 1)
+     * dayjs().set('month', 3) // April
+     * dayjs().set('second', 30)
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/set
+     */
+    set(unit: UnitType, value: number): Dayjs;
+    /**
+     * String getter, returns the corresponding information getting from Day.js object.
+     *
+     * In general:
+     * ```
+     * dayjs().get(unit) === dayjs()[unit]()
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     * ```
+     * dayjs().get('year')
+     * dayjs().get('month') // start 0
+     * dayjs().get('date')
+     * ```
+     * Docs: https://day.js.org/docs/en/get-set/get
+     */
+    get(unit: UnitType): number;
+    /**
+     * Returns a cloned Day.js object with a specified amount of time added.
+     * ```
+     * dayjs().add(7, 'day')// => Dayjs
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/manipulate/add
+     */
+    add(value: number, unit?: ManipulateType): Dayjs;
+    /**
+     * Returns a cloned Day.js object with a specified amount of time subtracted.
+     * ```
+     * dayjs().subtract(7, 'year')// => Dayjs
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/manipulate/subtract
+     */
+    subtract(value: number, unit?: ManipulateType): Dayjs;
+    /**
+     * Returns a cloned Day.js object and set it to the start of a unit of time.
+     * ```
+     * dayjs().startOf('year')// => Dayjs
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/manipulate/start-of
+     */
+    startOf(unit: OpUnitType): Dayjs;
+    /**
+     * Returns a cloned Day.js object and set it to the end of a unit of time.
+     * ```
+     * dayjs().endOf('month')// => Dayjs
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/manipulate/end-of
+     */
+    endOf(unit: OpUnitType): Dayjs;
+    /**
+     * Get the formatted date according to the string of tokens passed in.
+     *
+     * To escape characters, wrap them in square brackets (e.g. [MM]).
+     * ```
+     * dayjs().format()// => current date in ISO8601, without fraction seconds e.g. '2020-04-02T08:02:17-05:00'
+     * dayjs('2019-01-25').format('[YYYYescape] YYYY-MM-DDTHH:mm:ssZ[Z]')// 'YYYYescape 2019-01-25T00:00:00-02:00Z'
+     * dayjs('2019-01-25').format('DD/MM/YYYY') // '25/01/2019'
+     * ```
+     * Docs: https://day.js.org/docs/en/display/format
+     */
+    format(template?: string): string;
+    /**
+     * This indicates the difference between two date-time in the specified unit.
+     *
+     * To get the difference in milliseconds, use `dayjs#diff`
+     * ```
+     * const date1 = dayjs('2019-01-25')
+     * const date2 = dayjs('2018-06-05')
+     * date1.diff(date2) // 20214000000 default milliseconds
+     * date1.diff() // milliseconds to current time
+     * ```
+     *
+     * To get the difference in another unit of measurement, pass that measurement as the second argument.
+     * ```
+     * const date1 = dayjs('2019-01-25')
+     * date1.diff('2018-06-05', 'month') // 7
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/display/difference
+     */
+    diff(date?: ConfigType, unit?: QUnitType | OpUnitType, float?: boolean): number;
+    /**
+     * This returns the number of **milliseconds** since the Unix Epoch of the Day.js object.
+     * ```
+     * dayjs('2019-01-25').valueOf() // 1548381600000
+     * +dayjs(1548381600000) // 1548381600000
+     * ```
+     * To get a Unix timestamp (the number of seconds since the epoch) from a Day.js object, you should use Unix Timestamp `dayjs#unix()`.
+     *
+     * Docs: https://day.js.org/docs/en/display/unix-timestamp-milliseconds
+     */
+    valueOf(): number;
+    /**
+     * This returns the Unix timestamp (the number of **seconds** since the Unix Epoch) of the Day.js object.
+     * ```
+     * dayjs('2019-01-25').unix() // 1548381600
+     * ```
+     * This value is floored to the nearest second, and does not include a milliseconds component.
+     *
+     * Docs: https://day.js.org/docs/en/display/unix-timestamp
+     */
+    unix(): number;
+    /**
+     * Get the number of days in the current month.
+     * ```
+     * dayjs('2019-01-25').daysInMonth() // 31
+     * ```
+     * Docs: https://day.js.org/docs/en/display/days-in-month
+     */
+    daysInMonth(): number;
+    /**
+     * To get a copy of the native `Date` object parsed from the Day.js object use `dayjs#toDate`.
+     * ```
+     * dayjs('2019-01-25').toDate()// => Date
+     * ```
+     */
+    toDate(): Date;
+    /**
+     * To serialize as an ISO 8601 string.
+     * ```
+     * dayjs('2019-01-25').toJSON() // '2019-01-25T02:00:00.000Z'
+     * ```
+     * Docs: https://day.js.org/docs/en/display/as-json
+     */
+    toJSON(): string;
+    /**
+     * To format as an ISO 8601 string.
+     * ```
+     * dayjs('2019-01-25').toISOString() // '2019-01-25T02:00:00.000Z'
+     * ```
+     * Docs: https://day.js.org/docs/en/display/as-iso-string
+     */
+    toISOString(): string;
+    /**
+     * Returns a string representation of the date.
+     * ```
+     * dayjs('2019-01-25').toString() // 'Fri, 25 Jan 2019 02:00:00 GMT'
+     * ```
+     * Docs: https://day.js.org/docs/en/display/as-string
+     */
+    toString(): string;
+    /**
+     * Get the UTC offset in minutes.
+     * ```
+     * dayjs().utcOffset()
+     * ```
+     * Docs: https://day.js.org/docs/en/manipulate/utc-offset
+     */
+    utcOffset(): number;
+    /**
+     * This indicates whether the Day.js object is before the other supplied date-time.
+     * ```
+     * dayjs().isBefore(dayjs('2011-01-01')) // default milliseconds
+     * ```
+     * If you want to limit the granularity to a unit other than milliseconds, pass it as the second parameter.
+     * ```
+     * dayjs().isBefore('2011-01-01', 'year')// => boolean
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/query/is-before
+     */
+    isBefore(date?: ConfigType, unit?: OpUnitType): boolean;
+    /**
+     * This indicates whether the Day.js object is the same as the other supplied date-time.
+     * ```
+     * dayjs().isSame(dayjs('2011-01-01')) // default milliseconds
+     * ```
+     * If you want to limit the granularity to a unit other than milliseconds, pass it as the second parameter.
+     * ```
+     * dayjs().isSame('2011-01-01', 'year')// => boolean
+     * ```
+     * Docs: https://day.js.org/docs/en/query/is-same
+     */
+    isSame(date?: ConfigType, unit?: OpUnitType): boolean;
+    /**
+     * This indicates whether the Day.js object is after the other supplied date-time.
+     * ```
+     * dayjs().isAfter(dayjs('2011-01-01')) // default milliseconds
+     * ```
+     * If you want to limit the granularity to a unit other than milliseconds, pass it as the second parameter.
+     * ```
+     * dayjs().isAfter('2011-01-01', 'year')// => boolean
+     * ```
+     * Units are case insensitive, and support plural and short forms.
+     *
+     * Docs: https://day.js.org/docs/en/query/is-after
+     */
+    isAfter(date?: ConfigType, unit?: OpUnitType): boolean;
+    locale(): string;
+    locale(preset: string | ILocale, object?: Partial<ILocale>): Dayjs;
+  }
+  export type PluginFunc<T = unknown> = (option: T, c: typeof Dayjs, d: typeof dayjs) => void;
+  export function extend<T = unknown>(plugin: PluginFunc<T>, option?: T): Dayjs;
+  export function locale(preset?: string | ILocale, object?: Partial<ILocale>, isLocal?: boolean): string;
+  export function isDayjs(d: any): d is Dayjs;
+  export function unix(t: number): Dayjs;
+  const Ls: {
+    [key: string]: ILocale;
+  };
+}
+//#endregion
+//#region src/utils/date.d.ts
+declare class DateUtils {
+  readonly dayjs: typeof dayjs;
+  constructor();
+  /**
+   * Formats a date to a string according to the specified format
+   *
+   * @param date - The date to format (string, Date object, or null/undefined)
+   * @param format - The format string (defaults to "YYYY-MM-DD HH:mm")
+   * @returns The formatted date string, or empty string if date is null/undefined
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   * utils.date.format(new Date()); // "2025-10-22 14:30"
+   * utils.date.format("2025-10-22", "YYYY/MM/DD"); // "2025/10/22"
+   * ```
+   */
+  format(date: string | Date | undefined | null, format?: string): string;
+  /**
+   * Converts a date to ISO 8601 format string
+   *
+   * @param date - The date to convert (string, Date object, or null/undefined)
+   * @returns The ISO 8601 formatted date string, or empty string if date is null/undefined
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   * utils.date.toISOString(new Date("2025-10-22")); // "2025-10-22T00:00:00.000Z"
+   * ```
+   */
+  toISOString(date: string | Date | undefined | null): string;
+  /**
+   * Converts a date to HTML5 datetime-local input format
+   *
+   * @param date - The date to convert (string, Date object, or null/undefined)
+   * @returns The datetime-local formatted string (YYYY-MM-DDTHH:mm), or empty string if date is null/undefined
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/datetime-local#the_y10k_problem_often_client-side
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   * utils.date.toDatetimeLocal(new Date("2025-10-22 14:30")); // "2025-10-22T14:30"
+   * ```
+   */
+  toDatetimeLocal(date: string | Date | undefined | null): string;
+  /**
+   * Gets the relative time from now to the specified date
+   *
+   * @param date - The target date (string, Date object, or null/undefined)
+   * @returns A human-readable relative time string (e.g., "in 2 hours", "3 days ago"), or undefined if date is null/undefined
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   * // Assuming now is 2025-10-22
+   * utils.date.timeAgo("2025-10-23"); // "in a day"
+   * utils.date.timeAgo("2025-10-21"); // "a day ago"
+   * utils.date.timeAgo("2025-11-22"); // "in a month"
+   * ```
+   */
+  timeAgo(date: string | Date | undefined | null): string | undefined;
+  /**
+   * Sets the locale for date formatting
+   *
+   * @param locale - The locale code (e.g., "en", "zh", "en-US", "zh-CN", "zh-TW")
+   *
+   * @remarks
+   * Supported locales:
+   * - "en" or "en-US" → English
+   * - "zh" or "zh-CN" → Simplified Chinese
+   * - "zh-TW" → Traditional Chinese
+   *
+   * Defaults to English if the locale is not supported.
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   * utils.date.setLocale("zh-CN");
+   * utils.date.timeAgo("2025-10-21"); // "1 天前"
+   * utils.date.setLocale("en");
+   * utils.date.timeAgo("2025-10-21"); // "a day ago"
+   * ```
+   */
+  setLocale(locale: string): void;
+}
+// See https://github.com/iamkun/dayjs/issues/364
+declare module "dayjs" {
+  interface Dayjs {
+    fromNow(withoutSuffix?: boolean): string;
+    from(compared: dayjs.ConfigType, withoutSuffix?: boolean): string;
+    toNow(withoutSuffix?: boolean): string;
+    to(compared: dayjs.ConfigType, withoutSuffix?: boolean): string;
+  }
+}
+declare module "dayjs" {
+  interface Dayjs {
+    tz(timezone?: string, keepLocalTime?: boolean): dayjs.Dayjs;
+    offsetName(type?: "short" | "long"): string | undefined;
+  }
+  interface DayjsTimezone {
+    (date?: dayjs.ConfigType, timezone?: string): dayjs.Dayjs;
+    (date: dayjs.ConfigType, format: string, timezone?: string): dayjs.Dayjs;
+    guess(): string;
+    setDefault(timezone?: string): void;
+  }
+}
+declare module "dayjs" {
+  interface Dayjs {
+    utc(keepLocalTime?: boolean): dayjs.Dayjs;
+    local(): dayjs.Dayjs;
+    isUTC(): boolean;
+    utcOffset(offset: number | string, keepLocalTime?: boolean): dayjs.Dayjs;
+  }
+  function utc(config?: dayjs.ConfigType, format?: string, strict?: boolean): dayjs.Dayjs;
+}
+//#endregion
+//#region src/utils/id.d.ts
+/**
+ * Utilities for generating unique identifiers that remain sortable over time.
+ *
+ * Relies on the `uuid` package for RFC 4122 compliant UUID generation.
+ */
+declare class IdUtils {
+  /**
+   * Generates a RFC 4122 version 7 UUID string using the `uuid` package.
+   *
+   * UUID v7 keeps the order of creation roughly aligned with chronological order,
+   * making it a good fit for persistence stores or log entries that benefit from
+   * monotonic sorting.
+   *
+   * @returns A lowercase UUIDv7 string such as "018f1c2e-4fcb-7d04-9f21-1a2b3c4d5e6f".
+   */
+  uuid(): string;
+}
+//#endregion
+//#region src/utils/permission.d.ts
+/**
+ * Utility class for checking user permissions.
+ */
+declare class PermissionUtils {
+  private userPermissions?;
+  /**
+   * Creates a new PermissionUtils instance.
+   * @param userPermissions - Array of permissions that the user has
+   */
+  constructor(userPermissions?: Array<string>);
+  /**
+   * Checks if the user has the required permissions.
+   *
+   * @param permissions - Array of permissions to check against user's permissions
+   * @param any - If true, returns true when ANY of the required permissions match.
+   *              If false, returns true only when ALL required permissions match.
+   *              Defaults to true.
+   * @returns true if the permission check passes, false otherwise
+   *
+   * @throws Error if user permissions are not set
+   *
+   * @example
+   * ```ts
+   * import { utils } from "@halo-dev/ui-shared"
+   *
+   * // Check if user has any of the permissions
+   * utils.permission.has(['core:posts:manage'], true);
+   *
+   * // Check if user has all of the permissions
+   * utils.permission.has(['core:posts:view', 'core:attachments:view'], false);
+   * ```
+   */
+  has(permissions: Array<string>, any?: boolean): boolean;
+  /**
+   * Retrieves the current user permissions.
+   * @returns Array of user permissions or undefined if not set
+   */
+  getUserPermissions(): Array<string> | undefined;
+  /**
+   * Updates the user permissions.
+   * @param userPermissions - Array of permissions to set for the user
+   */
+  setUserPermissions(userPermissions: Array<string>): void;
+}
+//#endregion
+//#region src/utils/index.d.ts
+declare const utils: {
+  date: DateUtils;
+  attachment: AttachmentUtils;
+  permission: PermissionUtils;
+  id: IdUtils;
+};
+//#endregion
+export { AttachmentLike, AttachmentSelectProvider, AttachmentSimple, BackupTab, Build, CommentContentProvider, CommentEditorProvider, CommentSubjectRefProvider, CommentSubjectRefResult, Commit, CoreMenuGroupId, DashboardResponsiveLayout, DashboardWidget, DashboardWidgetDefinition, DashboardWidgetQuickActionItem, Database, EditorProvider, EntityFieldItem, Event$1 as Event, ExtensionPoint, FormType, Git, GlobalInfo, Info, Java, Jvm, MenuGroupType, MenuItemType, ModeType, OperationItem, Os, PluginFormKit, PluginInstallationTab, PluginModule, PluginTab, RouteRecordAppend, Runtime, Startup, StartupStep, THUMBNAIL_WIDTH_MAP, Tag, ThemeListTab, Timeline, UserProfileTab, UserTab, Vendor, definePlugin, events, stores, utils };

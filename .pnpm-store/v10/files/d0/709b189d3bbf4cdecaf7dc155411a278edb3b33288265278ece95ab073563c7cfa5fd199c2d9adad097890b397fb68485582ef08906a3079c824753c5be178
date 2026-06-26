@@ -1,0 +1,53 @@
+{
+  "name": "@rsbuild/plugin-vue",
+  "version": "2.0.0",
+  "description": "Vue 3 plugin of Rsbuild",
+  "homepage": "https://rsbuild.rs",
+  "bugs": {
+    "url": "https://github.com/web-infra-dev/rsbuild/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/web-infra-dev/rsbuild",
+    "directory": "packages/plugin-vue"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "rspack-vue-loader": "^17.5.1"
+  },
+  "devDependencies": {
+    "@rslib/core": "0.23.0",
+    "@types/node": "^24.13.2",
+    "typescript": "^6.0.3",
+    "vue": "^3.5.38",
+    "@rsbuild/core": "2.1.0-beta.0",
+    "@scripts/test-helper": "1.0.0"
+  },
+  "peerDependencies": {
+    "@rsbuild/core": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@rsbuild/core": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "rslib",
+    "dev": "rslib -w"
+  }
+}

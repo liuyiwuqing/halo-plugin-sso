@@ -1,0 +1,1380 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Halo",
+    "version" : "2.25.3"
+  },
+  "servers" : [ {
+    "url" : "http://127.0.0.1:8090",
+    "description" : "Generated server url"
+  } ],
+  "security" : [ {
+    "basicAuth" : [ ],
+    "bearerAuth" : [ ]
+  } ],
+  "paths" : {
+    "/apis/console.sso.muyin.site/v1alpha1/audit-logs/cleanup" : {
+      "post" : {
+        "description" : "按保留天数预览或清理 SSO 审计日志",
+        "operationId" : "cleanupSsoAuditLogs",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SsoAuditLogCleanupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoAuditLogCleanupResult"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/audit-logs/cleanup-records" : {
+      "get" : {
+        "description" : "获取最近的 SSO 审计日志清理记录",
+        "operationId" : "listSsoAuditLogCleanupRecords",
+        "parameters" : [ {
+          "description" : "返回数量，最大 50",
+          "in" : "query",
+          "name" : "limit",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoAuditLogCleanupRecord"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/audit-logs/cleanup-status" : {
+      "get" : {
+        "description" : "获取最近一次 SSO 审计日志清理状态",
+        "operationId" : "getSsoAuditLogCleanupStatus",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoAuditLogCleanupStatus"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/audit-logs/list" : {
+      "get" : {
+        "description" : "获取 SSO 审计日志列表",
+        "operationId" : "listSsoAuditLogs",
+        "parameters" : [ {
+          "description" : "处理结果：success 或 failure",
+          "in" : "query",
+          "name" : "outcome",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "接入站 Client ID",
+          "in" : "query",
+          "name" : "clientId",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "关键词，匹配 subject、email 或 message",
+          "in" : "query",
+          "name" : "keyword",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "页码，从 1 开始",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "description" : "每页数量，最大 100",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoAuditLogPage"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/audit-logs/recent-failures" : {
+      "get" : {
+        "description" : "获取最近登录失败原因聚合",
+        "operationId" : "listRecentSsoAuditFailures",
+        "parameters" : [ {
+          "description" : "返回数量，最大 20",
+          "in" : "query",
+          "name" : "limit",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoAuditFailureSummary"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/clients/create" : {
+      "post" : {
+        "description" : "创建 SSO 接入站",
+        "operationId" : "createSsoClient",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateSsoClientRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreateSsoClientResponse"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/clients/list" : {
+      "get" : {
+        "description" : "获取 SSO 接入站列表",
+        "operationId" : "listSsoClients",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoClientView"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/clients/update" : {
+      "post" : {
+        "description" : "更新 SSO 接入站",
+        "operationId" : "updateSsoClient",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SsoClient"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoClientView"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/clients/{clientId}" : {
+      "delete" : {
+        "description" : "删除 SSO 接入站",
+        "operationId" : "deleteSsoClient",
+        "parameters" : [ {
+          "description" : "Client ID",
+          "in" : "path",
+          "name" : "clientId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : { },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      },
+      "get" : {
+        "description" : "获取 SSO 接入站详情",
+        "operationId" : "getSsoClient",
+        "parameters" : [ {
+          "description" : "Client ID",
+          "in" : "path",
+          "name" : "clientId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoClientView"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/role-mappings/create" : {
+      "post" : {
+        "description" : "创建 SSO 角色映射",
+        "operationId" : "createSsoRoleMapping",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SsoRoleMapping"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoRoleMapping"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/role-mappings/list" : {
+      "get" : {
+        "description" : "获取 SSO 角色映射列表",
+        "operationId" : "listSsoRoleMappings",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoRoleMapping"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/role-mappings/update" : {
+      "post" : {
+        "description" : "更新 SSO 角色映射",
+        "operationId" : "updateSsoRoleMapping",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SsoRoleMapping"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoRoleMapping"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/role-mappings/{centerRole}" : {
+      "get" : {
+        "description" : "获取 SSO 角色映射详情",
+        "operationId" : "getSsoRoleMapping",
+        "parameters" : [ {
+          "description" : "中心身份站角色",
+          "in" : "path",
+          "name" : "centerRole",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoRoleMapping"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/settings/center-roles" : {
+      "get" : {
+        "description" : "通过服务端代理获取身份中心角色列表",
+        "operationId" : "listSsoCenterRoles",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoPublicRole"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/settings/general" : {
+      "get" : {
+        "description" : "获取 SSO 控制台运行设置",
+        "operationId" : "getSsoGeneralRuntimeSetting",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SsoGeneralRuntimeSetting"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/console.sso.muyin.site/v1alpha1/user-bindings/list" : {
+      "get" : {
+        "description" : "获取 SSO 用户绑定列表",
+        "operationId" : "listSsoUserBindings",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoUserBinding"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "console.sso.muyin.site/v1alpha1/Sso" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/client/callback" : {
+      "get" : {
+        "description" : "接入站处理 SSO 回调并建立本地登录态",
+        "operationId" : "clientSsoCallback",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : { },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/client/login" : {
+      "get" : {
+        "description" : "接入站发起 SSO 登录",
+        "operationId" : "clientSsoLogin",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "return_url",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : { },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/oauth/authorize" : {
+      "get" : {
+        "description" : "SSO OAuth 授权端点",
+        "operationId" : "oauthAuthorize",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "response_type",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "client_id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "redirect_uri",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "scope",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code_challenge",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code_challenge_method",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : { },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/oauth/token" : {
+      "post" : {
+        "description" : "SSO OAuth Token 端点",
+        "operationId" : "oauthToken",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OAuthTokenResponse"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/oauth/userinfo" : {
+      "get" : {
+        "description" : "SSO OAuth UserInfo 端点",
+        "operationId" : "oauthUserinfo",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OAuthUserInfoResponse"
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    },
+    "/apis/public.sso.muyin.site/v1alpha1/roles/list" : {
+      "get" : {
+        "description" : "获取中心身份站角色列表",
+        "operationId" : "listPublicSsoRoles",
+        "responses" : {
+          "default" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SsoPublicRole"
+                  }
+                }
+              }
+            },
+            "description" : "default response"
+          }
+        },
+        "tags" : [ "public.sso.muyin.site/v1alpha1/OAuth" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "AddOperation" : {
+        "required" : [ "op", "path", "value" ],
+        "type" : "object",
+        "properties" : {
+          "op" : {
+            "type" : "string",
+            "enum" : [ "add" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          },
+          "value" : {
+            "description" : "Value can be any JSON value"
+          }
+        }
+      },
+      "CopyOperation" : {
+        "required" : [ "op", "from", "path" ],
+        "type" : "object",
+        "properties" : {
+          "from" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          },
+          "op" : {
+            "type" : "string",
+            "enum" : [ "copy" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          }
+        }
+      },
+      "CreateSsoClientRequest" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "redirectUris" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "siteUrl" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreateSsoClientResponse" : {
+        "type" : "object",
+        "properties" : {
+          "client" : {
+            "$ref" : "#/components/schemas/SsoClientView"
+          },
+          "clientSecret" : {
+            "type" : "string"
+          }
+        }
+      },
+      "JsonPatch" : {
+        "minItems" : 1,
+        "uniqueItems" : true,
+        "type" : "array",
+        "description" : "JSON schema for JSONPatch operations",
+        "items" : {
+          "oneOf" : [ {
+            "$ref" : "#/components/schemas/AddOperation"
+          }, {
+            "$ref" : "#/components/schemas/ReplaceOperation"
+          }, {
+            "$ref" : "#/components/schemas/TestOperation"
+          }, {
+            "$ref" : "#/components/schemas/RemoveOperation"
+          }, {
+            "$ref" : "#/components/schemas/MoveOperation"
+          }, {
+            "$ref" : "#/components/schemas/CopyOperation"
+          } ]
+        }
+      },
+      "Metadata" : {
+        "required" : [ "name" ],
+        "type" : "object",
+        "properties" : {
+          "annotations" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "description" : "Annotations are like key-value format."
+          },
+          "creationTimestamp" : {
+            "type" : "string",
+            "description" : "Creation timestamp of the Extension.",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "deletionTimestamp" : {
+            "type" : "string",
+            "description" : "Deletion timestamp of the Extension.",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "finalizers" : {
+            "uniqueItems" : true,
+            "type" : "array",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "nullable" : true
+            }
+          },
+          "generateName" : {
+            "type" : "string",
+            "description" : "The name field will be generated automatically according to the given generateName field"
+          },
+          "labels" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "description" : "Labels are like key-value format."
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Metadata name"
+          },
+          "version" : {
+            "type" : "integer",
+            "description" : "Current version of the Extension. It will be bumped up every update.",
+            "format" : "int64",
+            "nullable" : true
+          }
+        },
+        "description" : "Metadata of Extension."
+      },
+      "MoveOperation" : {
+        "required" : [ "op", "from", "path" ],
+        "type" : "object",
+        "properties" : {
+          "from" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          },
+          "op" : {
+            "type" : "string",
+            "enum" : [ "move" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          }
+        }
+      },
+      "OAuthTokenResponse" : {
+        "type" : "object",
+        "properties" : {
+          "access_token" : {
+            "type" : "string"
+          },
+          "expires_in" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "id_token" : {
+            "type" : "string"
+          },
+          "token_type" : {
+            "type" : "string"
+          }
+        }
+      },
+      "OAuthUserInfoResponse" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "picture" : {
+            "type" : "string"
+          },
+          "preferred_username" : {
+            "type" : "string"
+          },
+          "roles" : {
+            "uniqueItems" : true,
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "sub" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RemoveOperation" : {
+        "required" : [ "op", "path" ],
+        "type" : "object",
+        "properties" : {
+          "op" : {
+            "type" : "string",
+            "enum" : [ "remove" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          }
+        }
+      },
+      "ReplaceOperation" : {
+        "required" : [ "op", "path", "value" ],
+        "type" : "object",
+        "properties" : {
+          "op" : {
+            "type" : "string",
+            "enum" : [ "replace" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          },
+          "value" : {
+            "description" : "Value can be any JSON value"
+          }
+        }
+      },
+      "SsoAuditFailureSummary" : {
+        "type" : "object",
+        "properties" : {
+          "clientIds" : {
+            "type" : "array",
+            "description" : "涉及的接入站 Client ID",
+            "items" : {
+              "type" : "string",
+              "description" : "涉及的接入站 Client ID"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "description" : "出现次数",
+            "format" : "int64"
+          },
+          "lastOccurredAt" : {
+            "type" : "string",
+            "description" : "最近发生时间",
+            "format" : "date-time"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "失败原因"
+          }
+        }
+      },
+      "SsoAuditLog" : {
+        "required" : [ "apiVersion", "eventType", "kind", "metadata", "outcome" ],
+        "type" : "object",
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "clientId" : {
+            "type" : "string",
+            "description" : "接入站客户端 ID"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "description" : "创建时间",
+            "format" : "date-time"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "邮箱"
+          },
+          "eventType" : {
+            "type" : "string",
+            "description" : "事件类型"
+          },
+          "ipAddress" : {
+            "type" : "string",
+            "description" : "请求 IP"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "说明"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/Metadata"
+          },
+          "outcome" : {
+            "type" : "string",
+            "description" : "处理结果"
+          },
+          "subject" : {
+            "type" : "string",
+            "description" : "中心站用户唯一主体"
+          }
+        },
+        "description" : "当前页数据"
+      },
+      "SsoAuditLogCleanupRecord" : {
+        "required" : [ "apiVersion", "kind", "metadata" ],
+        "type" : "object",
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "cutoffAt" : {
+            "type" : "string",
+            "description" : "清理截止时间",
+            "format" : "date-time"
+          },
+          "deleted" : {
+            "type" : "integer",
+            "description" : "实际删除日志数量",
+            "format" : "int64"
+          },
+          "dryRun" : {
+            "type" : "boolean",
+            "description" : "是否只预览，未执行删除"
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "description" : "结束时间",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "matched" : {
+            "type" : "integer",
+            "description" : "匹配清理条件的日志数量",
+            "format" : "int64"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "错误信息"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/Metadata"
+          },
+          "retained" : {
+            "type" : "integer",
+            "description" : "保留日志数量",
+            "format" : "int64"
+          },
+          "retentionDays" : {
+            "type" : "integer",
+            "description" : "保留天数",
+            "format" : "int32"
+          },
+          "scanned" : {
+            "type" : "integer",
+            "description" : "扫描日志数量",
+            "format" : "int64"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "description" : "开始时间",
+            "format" : "date-time"
+          },
+          "success" : {
+            "type" : "boolean",
+            "description" : "是否执行成功"
+          },
+          "trigger" : {
+            "type" : "string",
+            "description" : "触发来源，manual 或 auto"
+          }
+        }
+      },
+      "SsoAuditLogCleanupRequest" : {
+        "type" : "object",
+        "properties" : {
+          "dryRun" : {
+            "type" : "boolean",
+            "description" : "是否只预览，不执行删除",
+            "default" : true
+          },
+          "retentionDays" : {
+            "type" : "integer",
+            "description" : "保留天数，小于该天数的旧日志会被清理",
+            "format" : "int32",
+            "default" : 90
+          }
+        }
+      },
+      "SsoAuditLogCleanupResult" : {
+        "type" : "object",
+        "properties" : {
+          "cutoffAt" : {
+            "type" : "string",
+            "description" : "清理截止时间，早于该时间的日志会被清理",
+            "format" : "date-time"
+          },
+          "deleted" : {
+            "type" : "integer",
+            "description" : "实际删除日志数量",
+            "format" : "int64"
+          },
+          "dryRun" : {
+            "type" : "boolean",
+            "description" : "是否只预览，未执行删除"
+          },
+          "matched" : {
+            "type" : "integer",
+            "description" : "匹配清理条件的日志数量",
+            "format" : "int64"
+          },
+          "retained" : {
+            "type" : "integer",
+            "description" : "保留日志数量",
+            "format" : "int64"
+          },
+          "retentionDays" : {
+            "type" : "integer",
+            "description" : "保留天数",
+            "format" : "int32"
+          },
+          "scanned" : {
+            "type" : "integer",
+            "description" : "扫描日志数量",
+            "format" : "int64"
+          }
+        },
+        "description" : "清理结果"
+      },
+      "SsoAuditLogCleanupStatus" : {
+        "type" : "object",
+        "properties" : {
+          "finishedAt" : {
+            "type" : "string",
+            "description" : "结束时间",
+            "format" : "date-time"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "错误信息"
+          },
+          "result" : {
+            "$ref" : "#/components/schemas/SsoAuditLogCleanupResult"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "description" : "开始时间",
+            "format" : "date-time"
+          },
+          "success" : {
+            "type" : "boolean",
+            "description" : "是否执行成功"
+          },
+          "trigger" : {
+            "type" : "string",
+            "description" : "触发来源，manual 或 auto"
+          }
+        }
+      },
+      "SsoAuditLogPage" : {
+        "type" : "object",
+        "properties" : {
+          "hasNext" : {
+            "type" : "boolean",
+            "description" : "是否有下一页"
+          },
+          "hasPrevious" : {
+            "type" : "boolean",
+            "description" : "是否有上一页"
+          },
+          "items" : {
+            "type" : "array",
+            "description" : "当前页数据",
+            "items" : {
+              "$ref" : "#/components/schemas/SsoAuditLog"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "description" : "当前页码，从 1 开始",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "description" : "每页数量",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "description" : "总数量",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "description" : "总页数",
+            "format" : "int32"
+          }
+        }
+      },
+      "SsoClient" : {
+        "required" : [ "apiVersion", "clientId", "clientSecretHash", "displayName", "kind", "metadata" ],
+        "type" : "object",
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "clientId" : {
+            "type" : "string",
+            "description" : "接入站客户端 ID"
+          },
+          "clientSecretHash" : {
+            "type" : "string",
+            "description" : "接入站客户端密钥哈希"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "description" : "创建时间",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string",
+            "description" : "接入站名称"
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "是否启用该接入站"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/Metadata"
+          },
+          "redirectUris" : {
+            "type" : "array",
+            "description" : "允许的 OAuth 回调地址白名单",
+            "items" : {
+              "type" : "string",
+              "description" : "允许的 OAuth 回调地址白名单"
+            }
+          },
+          "siteUrl" : {
+            "type" : "string",
+            "description" : "接入站首页地址"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "description" : "更新时间",
+            "format" : "date-time"
+          }
+        }
+      },
+      "SsoClientView" : {
+        "type" : "object",
+        "properties" : {
+          "clientId" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "redirectUris" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "siteUrl" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "SsoGeneralRuntimeSetting" : {
+        "type" : "object",
+        "properties" : {
+          "centerUrl" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SsoPublicRole" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "hidden" : {
+            "type" : "boolean"
+          },
+          "module" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SsoRoleMapping" : {
+        "required" : [ "apiVersion", "centerRole", "kind", "localRole", "metadata" ],
+        "type" : "object",
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "centerRole" : {
+            "type" : "string",
+            "description" : "中心身份站标准角色"
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "是否启用"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "localRole" : {
+            "type" : "string",
+            "description" : "接入站本地 Halo 角色"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/Metadata"
+          },
+          "sort" : {
+            "type" : "integer",
+            "description" : "排序",
+            "format" : "int32"
+          }
+        }
+      },
+      "SsoUserBinding" : {
+        "required" : [ "apiVersion", "email", "kind", "localUsername", "metadata", "subject" ],
+        "type" : "object",
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "avatar" : {
+            "type" : "string",
+            "description" : "头像"
+          },
+          "boundAt" : {
+            "type" : "string",
+            "description" : "绑定时间",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string",
+            "description" : "展示名称"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "邮箱"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "lastLoginAt" : {
+            "type" : "string",
+            "description" : "最后登录时间",
+            "format" : "date-time"
+          },
+          "localUsername" : {
+            "type" : "string",
+            "description" : "接入站本地用户名"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/Metadata"
+          },
+          "subject" : {
+            "type" : "string",
+            "description" : "中心站用户唯一主体"
+          }
+        }
+      },
+      "TestOperation" : {
+        "required" : [ "op", "path", "value" ],
+        "type" : "object",
+        "properties" : {
+          "op" : {
+            "type" : "string",
+            "enum" : [ "test" ]
+          },
+          "path" : {
+            "pattern" : "^(/[^/~]*(~[01][^/~]*)*)*$",
+            "type" : "string",
+            "description" : "A JSON Pointer path pointing to the location to move/copy from.",
+            "example" : "/a/b/c"
+          },
+          "value" : {
+            "description" : "Value can be any JSON value"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "basicAuth" : {
+        "scheme" : "basic",
+        "type" : "http"
+      },
+      "bearerAuth" : {
+        "bearerFormat" : "JWT",
+        "scheme" : "bearer",
+        "type" : "http"
+      }
+    }
+  }
+}

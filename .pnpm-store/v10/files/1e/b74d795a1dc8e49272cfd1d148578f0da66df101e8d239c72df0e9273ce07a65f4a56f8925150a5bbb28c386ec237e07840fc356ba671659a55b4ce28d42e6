@@ -1,0 +1,89 @@
+import { ConfigParams, RsbuildConfig } from "@rsbuild/core";
+import { Plugin, UserConfig, UserConfigFnObject } from "vite";
+
+//#region src/legacy.d.ts
+interface HaloUIPluginBundlerKitOptions {
+  outDir?: string | {
+    dev: string;
+    prod: string;
+  };
+  manifestPath?: string;
+}
+/**
+ * @deprecated Use `viteConfig` or `rsbuildConfig` instead.
+ */
+declare function HaloUIPluginBundlerKit(options?: HaloUIPluginBundlerKitOptions): Plugin;
+//#endregion
+//#region src/rsbuild.d.ts
+interface RsBuildUserConfig {
+  /**
+   * UI plugin provider type.
+   *
+   * @default "plugin"
+   */
+  provider?: "plugin" | "theme";
+  /**
+   * Halo plugin or theme manifest path.
+   *
+   * @default "../src/main/resources/plugin.yaml" for plugins, "../theme.yaml" for themes
+   */
+  manifestPath?: string;
+  /**
+   * Custom Rsbuild config.
+   */
+  rsbuild: RsbuildConfig | ((env: ConfigParams) => RsbuildConfig);
+}
+/**
+ * Rsbuild config for Halo UI Plugin.
+ *
+ * @example
+ * ```ts
+ * import { rsbuildConfig } from "@halo-dev/ui-plugin-bundler-kit";
+ *
+ * export default rsbuildConfig({
+ *   rsbuild: {
+ *     // your custom rsbuild config
+ *   },
+ * });
+ * ```
+ * @param config
+ * @returns
+ */
+declare function rsbuildConfig(config?: RsBuildUserConfig): (env: ConfigParams) => RsbuildConfig;
+//#endregion
+//#region src/vite.d.ts
+interface ViteUserConfig {
+  /**
+   * UI plugin provider type.
+   *
+   * @default "plugin"
+   */
+  provider?: "plugin" | "theme";
+  /**
+   * Halo plugin or theme manifest path.
+   *
+   * @default "../src/main/resources/plugin.yaml" for plugins, "../theme.yaml" for themes
+   */
+  manifestPath?: string;
+  /**
+   * Custom Vite config.
+   */
+  vite: UserConfig | UserConfigFnObject;
+}
+/**
+ * Vite config for Halo UI Plugin.
+ *
+ * @example
+ * ```ts
+ * import { viteConfig } from "@halo-dev/ui-plugin-bundler-kit";
+ *
+ * export default viteConfig({
+ *   vite: {
+ *     // your custom vite config
+ *   },
+ * });
+ * ```
+ */
+declare function viteConfig(config?: ViteUserConfig): UserConfigFnObject;
+//#endregion
+export { HaloUIPluginBundlerKit, rsbuildConfig, viteConfig };

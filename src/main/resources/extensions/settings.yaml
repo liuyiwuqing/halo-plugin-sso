@@ -1,0 +1,133 @@
+apiVersion: v1alpha1
+kind: Setting
+metadata:
+  name: sso-settings
+spec:
+  forms:
+    - group: general
+      label: 基础设置
+      formSchema:
+        - $formkit: switch
+          id: general_allowHttpForLocalhost
+          key: general_allowHttpForLocalhost
+          name: allowHttpForLocalhost
+          label: 开发环境允许 HTTP localhost
+          value: true
+          help: 仅开发调试使用，生产环境不要依赖 HTTP。
+        - $formkit: select
+          id: general_mode
+          key: general_mode
+          name: mode
+          label: 运行模式
+          value: center
+          options:
+            - label: 身份中心模式
+              value: center
+            - label: 接入站模式
+              value: client
+          validation: required
+          help: 身份中心负责统一登录和授权；接入站负责跳转登录、用户绑定和角色映射。
+        - $formkit: select
+          if: "$get(general_mode).value === 'center'"
+          id: general_standardRoles
+          key: general_standardRoles
+          name: standardRoles
+          label: 中心标准角色
+          searchable: true
+          clearable: true
+          multiple: true
+          action: /api/v1alpha1/roles?labelSelector=!halo.run/role-template
+          requestOption:
+            method: GET
+            pageField: page
+            sizeField: size
+            totalField: total
+            itemsField: items
+            labelField: metadata.annotations['rbac.authorization.halo.run/display-name']
+            valueField: metadata.name
+            fieldSelectorKey: metadata.name
+          help: 从当前身份中心站的真实 Halo 角色中选择；身份中心只会向接入站下发这些标准角色，接入站再映射到本地角色。超级管理员默认不建议下发。
+          validation: required
+        - $formkit: switch
+          if: "$get(general_mode).value === 'center'"
+          id: general_requireVerifiedEmail
+          key: general_requireVerifiedEmail
+          name: requireVerifiedEmail
+          label: 要求邮箱已验证
+          value: true
+          help: 未验证邮箱的中心站用户不允许跨站登录。
+        - $formkit: text
+          if: "$get(general_mode).value === 'client'"
+          id: general_centerUrl
+          key: general_centerUrl
+          name: centerUrl
+          label: 身份中心地址
+          placeholder: https://auth.example.com
+          help: 接入站会跳转到该地址完成统一登录。
+          validation: required
+        - $formkit: text
+          if: "$get(general_mode).value === 'client'"
+          id: general_clientId
+          key: general_clientId
+          name: clientId
+          label: Client ID
+          help: 从身份中心的接入站管理页面获取。
+          validation: required
+        - $formkit: password
+          if: "$get(general_mode).value === 'client'"
+          id: general_clientSecret
+          key: general_clientSecret
+          name: clientSecret
+          label: Client Secret
+          help: 从身份中心生成后妥善保存，插件仅用于服务端 Token 交换。
+          validation: required
+        - $formkit: select
+          if: "$get(general_mode).value === 'client'"
+          id: general_defaultRole
+          key: general_defaultRole
+          name: defaultRole
+          label: 默认本地角色
+          help: 未命中角色映射时使用该角色，禁止默认给管理员权限。
+          value: guest
+          searchable: true
+          clearable: true
+          multiple: false
+          action: /api/v1alpha1/roles?labelSelector=!halo.run/role-template
+          requestOption:
+            method: GET
+            pageField: page
+            sizeField: size
+            totalField: total
+            itemsField: items
+            labelField: metadata.annotations['rbac.authorization.halo.run/display-name']
+            valueField: metadata.name
+            fieldSelectorKey: metadata.name
+          validation: required
+        - $formkit: switch
+          if: "$get(general_mode).value === 'client'"
+          id: general_syncProfileOnLogin
+          key: general_syncProfileOnLogin
+          name: syncProfileOnLogin
+          label: 登录时同步用户资料
+          value: true
+          help: 同步邮箱、用户名、展示名称和头像；不同步密码。
+    - group: audit
+      label: 审计日志设置
+      formSchema:
+        - $formkit: switch
+          id: audit_autoCleanupEnabled
+          key: audit_autoCleanupEnabled
+          name: autoCleanupEnabled
+          label: 自动清理过期审计日志
+          value: false
+          help: 开启后后台任务会定期清理超过保留天数的 SSO 审计日志。
+        - $formkit: number
+          id: audit_retentionDays
+          key: audit_retentionDays
+          name: retentionDays
+          label: 审计日志保留天数
+          value: 90
+          min: 1
+          max: 3650
+          validation: required
+          help: 自动清理会使用该值；手动清理可在 Console 审计面板临时调整，范围 1 到 3650 天。
