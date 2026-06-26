@@ -28,4 +28,6 @@ public class SsoGeneralSetting {
     private String defaultRole = "guest";
 
     private Boolean syncProfileOnLogin = true;
+
+    private Boolean autoSsoLoginEnabled = true;
 }

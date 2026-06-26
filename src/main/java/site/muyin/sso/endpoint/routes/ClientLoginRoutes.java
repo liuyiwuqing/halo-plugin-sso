@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+import site.muyin.sso.endpoint.ReturnUrlPolicy;
 import site.muyin.sso.service.ClientLoginService;
 import site.muyin.sso.service.SsoLoginSessionService;
 
@@ -35,6 +36,8 @@ public class ClientLoginRoutes {
                 .description("接入站发起 SSO 登录")
                 .tag(PUBLIC_TAG)
                 .parameter(parameterBuilder().name("return_url").in(ParameterIn.QUERY)
+                    .required(false).implementation(String.class))
+                .parameter(parameterBuilder().name("redirect_uri").in(ParameterIn.QUERY)
                     .required(false).implementation(String.class)))
             .GET("/callback", this::callback, builder -> builder
                 .operationId("clientSsoCallback")
@@ -48,7 +51,7 @@ public class ClientLoginRoutes {
     }
 
     private Mono<ServerResponse> login(ServerRequest request) {
-        return clientLoginService.startLogin(request.queryParam("return_url").orElse(null),
+        return clientLoginService.startLogin(returnUrl(request),
                 externalUrl(request))
             .flatMap(result -> ServerResponse.temporaryRedirect(URI.create(result.getRedirectUri()))
                 .build());
@@ -84,6 +87,12 @@ public class ClientLoginRoutes {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "无法识别当前站点访问地址");
         }
         return uri.getScheme() + "://" + uri.getRawAuthority();
+    }
+
+    private static String returnUrl(ServerRequest request) {
+        return request.queryParam("return_url")
+            .orElseGet(() -> ReturnUrlPolicy.safeLoginStartReturnUrl(
+                request.exchange().getRequest()));
     }
 
     private static String firstForwardedHeader(ServerRequest request, String name) {

@@ -93,6 +93,30 @@ class ClientModeLoginRedirectFilterTest {
     }
 
     @Test
+    void allowsThemeLoginWhenAutoSsoLoginDisabledInClientMode() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        setting.setAutoSsoLoginEnabled(false);
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        var filter = new ClientModeLoginRedirectFilter(settingFetcher);
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest
+            .get("https://client.example.com/login"
+                + "?redirect_uri=https%3A%2F%2Fclient.example.com%2Fposts%2F1")
+            .build());
+        var chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, filteredExchange -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertThat(chainCalled).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
+    }
+
+    @Test
     void doesNotRedirectLoginOutsideClientMode() {
         var settingFetcher = mock(ReactiveSettingFetcher.class);
         var setting = new SsoGeneralSetting();

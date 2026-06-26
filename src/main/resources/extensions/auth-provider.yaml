@@ -1,0 +1,13 @@
+apiVersion: auth.halo.run/v1alpha1
+kind: AuthProvider
+metadata:
+  name: muyin-sso
+  labels:
+    auth.halo.run/auth-binding: "false"
+spec:
+  displayName: 统一身份认证
+  description: 使用身份中心账号登录当前站点。
+  logo: /plugins/sso/assets/static/logo.svg
+  website: https://blog.muyin.site
+  authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
+  authType: oauth2

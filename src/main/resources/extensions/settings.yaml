@@ -111,6 +111,14 @@ spec:
           label: 登录时同步用户资料
           value: true
           help: 同步邮箱、用户名、展示名称和头像；不同步密码。
+        - $formkit: switch
+          if: "$get(general_mode).value === 'client'"
+          id: general_autoSsoLoginEnabled
+          key: general_autoSsoLoginEnabled
+          name: autoSsoLoginEnabled
+          label: 自动跳转 SSO 登录
+          value: true
+          help: 开启后访问本站 /login 会自动跳转身份中心；关闭后保留 Halo 默认登录页，启用“统一身份认证”认证提供者后可在登录页手动发起 SSO 登录。
     - group: audit
       label: 审计日志设置
       formSchema:
