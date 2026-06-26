@@ -21,6 +21,7 @@ import site.muyin.sso.setting.SsoGeneralSetting;
 public class ClientModeLoginRedirectFilter implements AdditionalWebFilter {
 
     private static final String LOCAL_LOGIN_QUERY = "sso_local";
+    private static final String LOGOUT_QUERY = "logout";
 
     private final ReactiveSettingFetcher settingFetcher;
 
@@ -54,7 +55,9 @@ public class ClientModeLoginRedirectFilter implements AdditionalWebFilter {
             return false;
         }
         var queryParams = request.getQueryParams();
-        return !queryParams.containsKey(LOCAL_LOGIN_QUERY) && !queryParams.containsKey("method");
+        return !queryParams.containsKey(LOCAL_LOGIN_QUERY)
+            && !queryParams.containsKey(LOGOUT_QUERY)
+            && !queryParams.containsKey("method");
     }
 
     private static URI clientLoginUri(ServerWebExchange exchange) {

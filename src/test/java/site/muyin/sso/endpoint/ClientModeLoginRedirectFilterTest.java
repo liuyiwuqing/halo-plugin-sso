@@ -71,6 +71,28 @@ class ClientModeLoginRedirectFilterTest {
     }
 
     @Test
+    void allowsLogoutLandingLoginInClientMode() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        var filter = new ClientModeLoginRedirectFilter(settingFetcher);
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest
+            .get("https://client.example.com/login?logout")
+            .build());
+        var chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, filteredExchange -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertThat(chainCalled).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
+    }
+
+    @Test
     void doesNotRedirectLoginOutsideClientMode() {
         var settingFetcher = mock(ReactiveSettingFetcher.class);
         var setting = new SsoGeneralSetting();
