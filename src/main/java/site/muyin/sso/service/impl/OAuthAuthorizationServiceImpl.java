@@ -44,7 +44,10 @@ public class OAuthAuthorizationServiceImpl implements OAuthAuthorizationService 
         return ssoClientService.requireAuthorizedClientWithRX(request.getClientId(),
                 request.getRedirectUri())
             .then(centerUserClaimService.currentUser())
-            .map(user -> issueCodeAndBuildRedirect(request, user));
+            .map(user -> issueCodeAndBuildRedirect(request, user))
+            .onErrorMap(AuthorizationCodeException.class,
+                error -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    error.getMessage(), error));
     }
 
     @Override

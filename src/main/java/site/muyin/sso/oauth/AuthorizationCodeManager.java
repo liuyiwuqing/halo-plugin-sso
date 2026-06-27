@@ -15,10 +15,12 @@ import org.springframework.stereotype.Component;
 public class AuthorizationCodeManager {
 
     private static final Duration DEFAULT_TTL = Duration.ofMinutes(5);
+    private static final int DEFAULT_MAX_CODES = 10_000;
     private static final int CODE_BYTES = 32;
 
     private final Clock clock;
     private final Duration ttl;
+    private final int maxCodes;
     private final SecureRandom secureRandom;
     private final ConcurrentMap<String, StoredAuthorizationCode> codes;
 
@@ -27,9 +29,15 @@ public class AuthorizationCodeManager {
     }
 
     private AuthorizationCodeManager(Clock clock, Duration ttl, SecureRandom secureRandom) {
+        this(clock, ttl, secureRandom, DEFAULT_MAX_CODES);
+    }
+
+    private AuthorizationCodeManager(Clock clock, Duration ttl, SecureRandom secureRandom,
+        int maxCodes) {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
-        this.ttl = Objects.requireNonNull(ttl, "ttl must not be null");
+        this.ttl = requirePositive(ttl, "ttl");
         this.secureRandom = Objects.requireNonNull(secureRandom, "secureRandom must not be null");
+        this.maxCodes = requirePositive(maxCodes, "maxCodes");
         this.codes = new ConcurrentHashMap<>();
     }
 
@@ -37,7 +45,11 @@ public class AuthorizationCodeManager {
         return new AuthorizationCodeManager(clock, DEFAULT_TTL, new SecureRandom());
     }
 
-    public IssuedAuthorizationCode issue(AuthorizationCodeIssueRequest request) {
+    static AuthorizationCodeManager inMemory(Clock clock, Duration ttl, int maxCodes) {
+        return new AuthorizationCodeManager(clock, ttl, new SecureRandom(), maxCodes);
+    }
+
+    public synchronized IssuedAuthorizationCode issue(AuthorizationCodeIssueRequest request) {
         requireText(request.getClientId(), "clientId");
         requireText(request.getRedirectUri(), "redirectUri");
         requireText(request.getSubject(), "subject");
@@ -45,6 +57,8 @@ public class AuthorizationCodeManager {
         requireText(request.getCodeChallenge(), "codeChallenge");
 
         var now = clock.instant();
+        cleanupExpired(now);
+        ensureCapacity();
         var expiresAt = now.plus(ttl);
         while (true) {
             var code = nextCode();
@@ -74,11 +88,20 @@ public class AuthorizationCodeManager {
         requireText(request.getRedirectUri(), "redirectUri");
         requireText(request.getCodeVerifier(), "codeVerifier");
 
+        var now = clock.instant();
         var storedCode = codes.get(request.getCode());
         if (storedCode == null) {
-            throw new AuthorizationCodeException("authorization_code not found");
+            cleanupExpired(now);
+            throw new AuthorizationCodeException("authorization_code not found or already used");
         }
-        return storedCode.consume(request, clock.instant());
+        if (storedCode.isExpired(now)) {
+            codes.remove(request.getCode(), storedCode);
+            cleanupExpired(now);
+            throw new AuthorizationCodeException("authorization_code expired");
+        }
+        var grant = storedCode.consume(request, now);
+        codes.remove(request.getCode(), storedCode);
+        return grant;
     }
 
     private String nextCode() {
@@ -91,6 +114,35 @@ public class AuthorizationCodeManager {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
+    }
+
+    private void cleanupExpired(Instant now) {
+        codes.forEach((code, storedCode) -> {
+            if (storedCode.isExpired(now)) {
+                codes.remove(code, storedCode);
+            }
+        });
+    }
+
+    private void ensureCapacity() {
+        if (codes.size() >= maxCodes) {
+            throw new AuthorizationCodeException("authorization_code capacity exceeded");
+        }
+    }
+
+    private static Duration requirePositive(Duration value, String fieldName) {
+        Objects.requireNonNull(value, fieldName + " must not be null");
+        if (value.isZero() || value.isNegative()) {
+            throw new IllegalArgumentException(fieldName + " must be positive");
+        }
+        return value;
+    }
+
+    private static int requirePositive(int value, String fieldName) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be positive");
+        }
+        return value;
     }
 
     private static String normalizeOptionalText(String value) {
@@ -130,12 +182,16 @@ public class AuthorizationCodeManager {
             this.expiresAt = expiresAt;
         }
 
+        private boolean isExpired(Instant now) {
+            return !now.isBefore(expiresAt);
+        }
+
         private synchronized AuthorizationCodeGrant consume(AuthorizationCodeConsumeRequest request,
             Instant now) {
             if (consumed) {
                 throw new AuthorizationCodeException("authorization_code already used");
             }
-            if (!now.isBefore(expiresAt)) {
+            if (isExpired(now)) {
                 throw new AuthorizationCodeException("authorization_code expired");
             }
             if (!clientId.equals(request.getClientId())) {

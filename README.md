@@ -201,6 +201,21 @@ authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
 
 登录完成后会回到指定地址。插件会校验返回地址，只允许本站相对路径，避免被拿去做开放重定向。这个地方不校验就等于给钓鱼链接递刀，不能省。
 
+## 运行时临时状态与稳定性保护
+
+插件会在内存中短暂保存 OAuth 授权码和接入站发起登录时的 `state` 会话，这两类数据都只用于一次登录闭环，不作为长期状态保存。
+
+- 授权码有效期为 5 分钟，`/oauth/token` 成功消费后立即从内存删除；过期授权码会在签发新授权码或消费授权码时清理。
+- 未完成登录会话有效期为 10 分钟，接入站回调消费 `state` 后立即从内存删除；过期会话会在发起登录或消费 `state` 时清理。
+- 授权码和未完成登录会话均设置最大容量 `10000`，容量达到上限时会拒绝继续创建临时状态，避免异常流量导致内存持续增长。
+
+审核验证可重点查看：
+
+```bash
+./gradlew test --tests site.muyin.sso.oauth.AuthorizationCodeManagerTest --tests site.muyin.sso.clientlogin.ClientLoginSessionManagerTest
+./gradlew build
+```
+
 ## 审计日志与清理
 
 插件会记录接入站登录过程中的关键结果：

@@ -77,7 +77,10 @@ public class ClientLoginServiceImpl implements ClientLoginService {
                 return ClientLoginStartResult.builder()
                     .redirectUri(redirectUri)
                     .build();
-            });
+            })
+            .onErrorMap(ClientLoginException.class,
+                error -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    error.getMessage(), error));
     }
 
     @Override
