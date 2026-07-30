@@ -3,10 +3,13 @@ package site.muyin.sso.endpoint.routes;
 import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
 import static site.muyin.sso.endpoint.SsoConsoleEndpoint.CONSOLE_TAG;
 
+import java.util.concurrent.TimeoutException;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
@@ -56,6 +59,15 @@ public class SsoSettingRoutes {
             .defaultIfEmpty(new SsoGeneralSetting())
             .map(SsoSettingRoutes::requireClientMode)
             .flatMapMany(setting -> centerRoleClient.listRoles(setting.getCenterUrl()))
+            .onErrorMap(WebClientResponseException.class,
+                error -> new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "身份中心角色服务请求失败: HTTP " + error.getStatusCode().value(), error))
+            .onErrorMap(WebClientRequestException.class,
+                error -> new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "无法连接身份中心角色服务", error))
+            .onErrorMap(TimeoutException.class,
+                error -> new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,
+                    "身份中心角色列表请求超时", error))
             .collectList()
             .flatMap(roles -> ServerResponse.ok().bodyValue(roles));
     }

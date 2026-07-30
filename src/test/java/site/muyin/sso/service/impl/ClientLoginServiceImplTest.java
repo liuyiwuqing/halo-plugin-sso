@@ -8,16 +8,22 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -43,6 +49,7 @@ import site.muyin.sso.service.SsoUserBindingService;
 import site.muyin.sso.scheme.SsoRoleMapping;
 import site.muyin.sso.scheme.SsoUserBinding;
 import site.muyin.sso.setting.SsoGeneralSetting;
+import site.muyin.sso.userbinding.SsoLocalUsername;
 
 class ClientLoginServiceImplTest {
 
@@ -67,6 +74,7 @@ class ClientLoginServiceImplTest {
             new SsoAuditLogServiceImpl(reactiveExtensionClient)
         );
         var generalSetting = clientModeGeneralSetting();
+        var managedLocalUsername = SsoLocalUsername.fromSubject("user-001");
 
         when(settingFetcher.fetch("general", SsoGeneralSetting.class))
             .thenReturn(Mono.just(generalSetting));
@@ -107,7 +115,7 @@ class ClientLoginServiceImplTest {
                 .build()));
         when(reactiveExtensionClient.fetch(eq(SsoUserBinding.class), anyString()))
             .thenReturn(Mono.empty());
-        when(reactiveExtensionClient.fetch(eq(User.class), eq("lywq")))
+        when(reactiveExtensionClient.fetch(eq(User.class), eq(managedLocalUsername)))
             .thenReturn(Mono.empty());
         when(reactiveExtensionClient.listAll(eq(SsoRoleMapping.class), any(ListOptions.class),
             any(Sort.class)))
@@ -123,12 +131,13 @@ class ClientLoginServiceImplTest {
             "https://b.example.com/").block();
 
         assertThat(callbackResult.getReturnUrl()).isEqualTo("/posts/1");
-        assertThat(callbackResult.getLocalUsername()).isEqualTo("lywq");
+        assertThat(callbackResult.getLocalUsername()).isEqualTo(managedLocalUsername);
         assertThat(callbackResult.getGrantedRoles()).containsExactly("guest");
         assertThat(callbackResult.isLocalUserCreated()).isTrue();
         assertThat(callbackResult.getUserInfo().getSub()).isEqualTo("user-001");
         assertThat(callbackResult.getUserInfo().getPreferredUsername()).isEqualTo("lywq");
         assertThat(callbackResult.getUserInfo().getEmail()).isEqualTo("lywq@example.com");
+        verify(reactiveExtensionClient, never()).fetch(User.class, "lywq");
     }
 
     @Test
@@ -183,6 +192,112 @@ class ClientLoginServiceImplTest {
                     .contains("身份中心 OAuth 请求失败")
                     .contains("401");
             });
+    }
+
+    @Test
+    void mapsCenterOAuthTimeoutToGatewayTimeout() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var sessionManager = new ClientLoginSessionManager();
+        var centerOAuthClient = mock(CenterOAuthClient.class);
+        var auditLogService = mock(SsoAuditLogService.class);
+        var service = new ClientLoginServiceImpl(
+            settingFetcher,
+            sessionManager,
+            centerOAuthClient,
+            mock(SsoUserBindingService.class),
+            mock(SsoRoleMappingService.class),
+            mock(SsoLocalUserProvisioningService.class),
+            auditLogService
+        );
+        var state = sessionManager.start("/posts/1").state();
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(clientModeGeneralSetting()));
+        when(centerOAuthClient.exchangeCode(anyString(), any(OAuthTokenRequest.class)))
+            .thenReturn(Mono.error(new TimeoutException("upstream timed out")));
+        when(auditLogService.recordLoginFailure(eq("site-b"),
+            nullable(OAuthUserInfoResponse.class), anyString()))
+            .thenReturn(Mono.empty());
+
+        assertThatThrownBy(() -> service.handleCallback("code-001", state,
+                "https://b.example.com/").block())
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                var responseStatus = (ResponseStatusException) error;
+                assertThat(responseStatus.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
+                assertThat(responseStatus.getReason()).contains("身份中心 OAuth 请求超时");
+            });
+    }
+
+    @Test
+    void mapsCenterOAuthConnectionFailureToBadGateway() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var sessionManager = new ClientLoginSessionManager();
+        var centerOAuthClient = mock(CenterOAuthClient.class);
+        var auditLogService = mock(SsoAuditLogService.class);
+        var service = new ClientLoginServiceImpl(
+            settingFetcher,
+            sessionManager,
+            centerOAuthClient,
+            mock(SsoUserBindingService.class),
+            mock(SsoRoleMappingService.class),
+            mock(SsoLocalUserProvisioningService.class),
+            auditLogService
+        );
+        var state = sessionManager.start("/posts/1").state();
+        var requestError = new WebClientRequestException(
+            new IOException("connection refused"),
+            HttpMethod.POST,
+            URI.create("https://auth.example.com/token"),
+            HttpHeaders.EMPTY
+        );
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(clientModeGeneralSetting()));
+        when(centerOAuthClient.exchangeCode(anyString(), any(OAuthTokenRequest.class)))
+            .thenReturn(Mono.error(requestError));
+        when(auditLogService.recordLoginFailure(eq("site-b"),
+            nullable(OAuthUserInfoResponse.class), anyString()))
+            .thenReturn(Mono.empty());
+
+        assertThatThrownBy(() -> service.handleCallback("code-001", state,
+                "https://b.example.com/").block())
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                var responseStatus = (ResponseStatusException) error;
+                assertThat(responseStatus.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+                assertThat(responseStatus.getReason()).contains("无法连接身份中心 OAuth 服务");
+            });
+    }
+
+    @Test
+    void rejectsUnknownStateWithoutPersistingUnauthenticatedAuditData() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var auditLogService = mock(SsoAuditLogService.class);
+        var service = new ClientLoginServiceImpl(
+            settingFetcher,
+            new ClientLoginSessionManager(),
+            mock(CenterOAuthClient.class),
+            mock(SsoUserBindingService.class),
+            mock(SsoRoleMappingService.class),
+            mock(SsoLocalUserProvisioningService.class),
+            auditLogService
+        );
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(clientModeGeneralSetting()));
+        when(auditLogService.recordLoginFailure(eq("site-b"),
+            nullable(OAuthUserInfoResponse.class), anyString()))
+            .thenReturn(Mono.empty());
+
+        assertThatThrownBy(() -> service.handleCallback(
+                "untrusted-code", "unknown-state", "https://b.example.com/").block())
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST));
+
+        verify(auditLogService, never()).recordLoginFailure(
+            eq("site-b"), nullable(OAuthUserInfoResponse.class), anyString());
     }
 
     private static boolean tokenRequestMatches(OAuthTokenRequest request, String callbackUri) {

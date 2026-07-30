@@ -42,6 +42,15 @@ public final class RedirectUriPolicy {
             throw new IllegalArgumentException("redirectUri must not contain wildcard");
         }
         var parsed = URI.create(redirectUri);
+        if (parsed.getHost() == null || parsed.getHost().isBlank()) {
+            throw new IllegalArgumentException("redirectUri must contain a host");
+        }
+        if (parsed.getRawUserInfo() != null) {
+            throw new IllegalArgumentException("redirectUri must not contain userinfo");
+        }
+        if (parsed.getRawFragment() != null) {
+            throw new IllegalArgumentException("redirectUri must not contain fragment");
+        }
         var scheme = parsed.getScheme();
         if (!"https".equalsIgnoreCase(scheme)
             && !isAllowedLocalhostHttp(parsed, allowHttpForLocalhost)) {

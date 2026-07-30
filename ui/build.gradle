@@ -3,7 +3,7 @@ plugins {
     id "com.github.node-gradle.node" version "7.1.0"
 }
 
-group 'site.muyin.sso.ui'
+group = 'site.muyin.sso.ui'
 
 def pinnedPnpmVersion = '10.12.4'
 
@@ -31,8 +31,8 @@ tasks.register('pnpmBuild', PnpmTask) {
 
 tasks.register('pnpmCheck', PnpmTask) {
     group = 'verification'
-    description = 'Run unit tests for the UI project using pnpm'
-    args = ['test:unit']
+    description = 'Run UI type checks, linters, and unit tests using pnpm'
+    args = ['run', 'check']
     dependsOn tasks.named('pnpmInstall')
 }
 

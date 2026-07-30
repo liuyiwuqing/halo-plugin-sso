@@ -17,6 +17,7 @@ import run.halo.app.extension.Unstructured;
 import site.muyin.sso.model.oauth.OAuthUserInfoResponse;
 import site.muyin.sso.scheme.SsoUserBinding;
 import site.muyin.sso.service.SsoUserBindingService;
+import site.muyin.sso.userbinding.SsoLocalUsername;
 import site.muyin.sso.userbinding.SsoUserBindingName;
 
 @Service
@@ -51,7 +52,7 @@ public class SsoUserBindingServiceImpl implements SsoUserBindingService {
         var binding = new SsoUserBinding()
             .setSubject(userInfo.getSub())
             .setEmail(userInfo.getEmail())
-            .setLocalUsername(resolveLocalUsername(userInfo))
+            .setLocalUsername(SsoLocalUsername.fromSubject(userInfo.getSub()))
             .setDisplayName(userInfo.getName())
             .setAvatar(userInfo.getPicture())
             .setBoundAt(now)
@@ -71,7 +72,6 @@ public class SsoUserBindingServiceImpl implements SsoUserBindingService {
             binding.setMetadata(new Metadata());
         }
         binding.setEmail(userInfo.getEmail());
-        binding.setLocalUsername(resolveLocalUsername(userInfo));
         binding.setDisplayName(userInfo.getName());
         binding.setAvatar(userInfo.getPicture());
         binding.setLastLoginAt(Instant.now());
@@ -92,31 +92,6 @@ public class SsoUserBindingServiceImpl implements SsoUserBindingService {
         var extension = new Unstructured(extensionMap);
         return reactiveExtensionClient.update(extension)
             .map(unstructured -> objectMapper.convertValue(unstructured, SsoUserBinding.class));
-    }
-
-    private static String resolveLocalUsername(OAuthUserInfoResponse userInfo) {
-        return firstText(
-            userInfo.getPreferredUsername(),
-            localPart(userInfo.getEmail()),
-            userInfo.getSub()
-        );
-    }
-
-    private static String localPart(String email) {
-        if (email == null) {
-            return null;
-        }
-        var atIndex = email.indexOf('@');
-        return atIndex > 0 ? email.substring(0, atIndex) : email;
-    }
-
-    private static String firstText(String... values) {
-        for (var value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.trim();
-            }
-        }
-        throw new IllegalArgumentException("at least one text value is required");
     }
 
     private static void requireText(String value, String fieldName) {

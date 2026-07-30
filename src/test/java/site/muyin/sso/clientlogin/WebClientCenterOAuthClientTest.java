@@ -1,7 +1,10 @@
 package site.muyin.sso.clientlogin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.http.HttpHeaders;
@@ -108,5 +111,24 @@ class WebClientCenterOAuthClientTest {
         assertThat(response.getName()).isEqualTo("Lywq");
         assertThat(response.getPicture()).isEqualTo("https://example.com/avatar.png");
         assertThat(response.getRoles()).containsExactlyInAnyOrder("author", "subscriber");
+    }
+
+    @Test
+    void timesOutWhenCenterTokenEndpointDoesNotRespond() {
+        var client = new WebClientCenterOAuthClient(WebClient.builder()
+            .exchangeFunction(request -> Mono.never())
+            .build(), Duration.ofMillis(25));
+
+        assertThatThrownBy(() -> client.exchangeCode("https://demo.muyin.site/",
+                OAuthTokenRequest.builder()
+                    .grantType("authorization_code")
+                    .code("code-001")
+                    .redirectUri("https://b.example.com/callback")
+                    .clientId("site-b")
+                    .clientSecret("client-secret")
+                    .codeVerifier("verifier-001")
+                    .build())
+            .block())
+            .hasRootCauseInstanceOf(TimeoutException.class);
     }
 }

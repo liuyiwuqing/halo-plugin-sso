@@ -20,7 +20,7 @@ class ClientLoginRoutesTest {
     void startsLoginFromSameOriginRedirectUri() {
         var clientLoginService = mock(ClientLoginService.class);
         var loginSessionService = mock(SsoLoginSessionService.class);
-        when(clientLoginService.startLogin(anyString(), anyString()))
+        when(clientLoginService.startLogin(anyString(), anyString(), anyString()))
             .thenReturn(Mono.just(ClientLoginStartResult.builder()
                 .redirectUri("https://auth.example.com/oauth/authorize")
                 .build()));
@@ -35,7 +35,7 @@ class ClientLoginRoutesTest {
             .expectHeader().location("https://auth.example.com/oauth/authorize");
 
         var returnUrl = ArgumentCaptor.forClass(String.class);
-        verify(clientLoginService).startLogin(returnUrl.capture(), anyString());
+        verify(clientLoginService).startLogin(returnUrl.capture(), anyString(), anyString());
         assertThat(returnUrl.getValue()).isEqualTo("/posts/1?tab=comments");
     }
 
@@ -43,7 +43,7 @@ class ClientLoginRoutesTest {
     void startsLoginFromLoginPageRefererRedirectUri() {
         var clientLoginService = mock(ClientLoginService.class);
         var loginSessionService = mock(SsoLoginSessionService.class);
-        when(clientLoginService.startLogin(anyString(), anyString()))
+        when(clientLoginService.startLogin(anyString(), anyString(), anyString()))
             .thenReturn(Mono.just(ClientLoginStartResult.builder()
                 .redirectUri("https://auth.example.com/oauth/authorize")
                 .build()));
@@ -60,8 +60,31 @@ class ClientLoginRoutesTest {
             .expectStatus().isTemporaryRedirect();
 
         var returnUrl = ArgumentCaptor.forClass(String.class);
-        verify(clientLoginService).startLogin(returnUrl.capture(), anyString());
+        verify(clientLoginService).startLogin(returnUrl.capture(), anyString(), anyString());
         assertThat(returnUrl.getValue()).isEqualTo("/posts/1");
+    }
+
+    @Test
+    void doesNotTrustRawForwardedForHeaderForRequesterQuota() {
+        var clientLoginService = mock(ClientLoginService.class);
+        var loginSessionService = mock(SsoLoginSessionService.class);
+        when(clientLoginService.startLogin(anyString(), anyString(), anyString()))
+            .thenReturn(Mono.just(ClientLoginStartResult.builder()
+                .redirectUri("https://auth.example.com/oauth/authorize")
+                .build()));
+
+        webClient(clientLoginService, loginSessionService)
+            .get()
+            .uri("/login")
+            .header("X-Forwarded-Proto", "https")
+            .header("X-Forwarded-Host", "client.example.com")
+            .header("X-Forwarded-For", "198.51.100.23")
+            .exchange()
+            .expectStatus().isTemporaryRedirect();
+
+        var requesterKey = ArgumentCaptor.forClass(String.class);
+        verify(clientLoginService).startLogin(anyString(), anyString(), requesterKey.capture());
+        assertThat(requesterKey.getValue()).isNotEqualTo("198.51.100.23");
     }
 
     private static WebTestClient webClient(ClientLoginService clientLoginService,

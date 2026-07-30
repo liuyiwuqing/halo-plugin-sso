@@ -81,6 +81,27 @@ class ClientLoginSessionManagerTest {
             .hasMessageContaining("上限");
     }
 
+    @Test
+    void limitsOutstandingSessionsPerRequesterWithoutBlockingOtherRequesters() {
+        var manager = new ClientLoginSessionManager(
+            fixedClock(),
+            Duration.ofMinutes(10),
+            new SecureRandom(),
+            10,
+            1
+        );
+
+        var first = manager.start("/posts/1", "192.0.2.10");
+
+        assertThatThrownBy(() -> manager.start("/posts/2", "192.0.2.10"))
+            .isInstanceOf(ClientLoginException.class)
+            .hasMessageContaining("请求来源");
+        assertThat(manager.start("/posts/3", "192.0.2.11").state()).isNotBlank();
+
+        manager.consume(first.state());
+        assertThat(manager.start("/posts/4", "192.0.2.10").state()).isNotBlank();
+    }
+
     private static Clock fixedClock() {
         return Clock.fixed(Instant.parse("2026-06-24T08:00:00Z"), ZoneId.of("UTC"));
     }

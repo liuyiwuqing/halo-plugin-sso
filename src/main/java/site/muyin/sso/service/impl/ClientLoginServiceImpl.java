@@ -1,9 +1,11 @@
 package site.muyin.sso.service.impl;
 
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -55,11 +57,12 @@ public class ClientLoginServiceImpl implements ClientLoginService {
     }
 
     @Override
-    public Mono<ClientLoginStartResult> startLogin(String returnUrl, String externalUrl) {
+    public Mono<ClientLoginStartResult> startLogin(String returnUrl, String externalUrl,
+        String requesterKey) {
         var safeReturnUrl = sanitizeReturnUrl(returnUrl);
         return runtimeSettings(externalUrl)
             .map(settings -> {
-                var session = sessionManager.start(safeReturnUrl);
+                var session = sessionManager.start(safeReturnUrl, requesterKey);
                 var callbackUri = callbackUri(settings.externalUrl());
                 var redirectUri = UriComponentsBuilder
                     .fromUriString(endpoint(settings.general().getCenterUrl(),
@@ -89,17 +92,7 @@ public class ClientLoginServiceImpl implements ClientLoginService {
         requireText(code, "code");
         return runtimeSettings(externalUrl)
             .flatMap(settings -> {
-                ClientLoginSession session;
-                try {
-                    session = consumeState(state);
-                } catch (RuntimeException error) {
-                    return safeAudit(auditLogService.recordLoginFailure(
-                            settings.general().getClientId(),
-                            null,
-                            errorMessage(error)
-                        ))
-                        .then(Mono.<ClientLoginCallbackResult>error(error));
-                }
+                var session = consumeState(state);
                 var loadedUserInfo = new AtomicReference<OAuthUserInfoResponse>();
                 return exchangeAndLoadUserInfo(settings, session, code)
                     .doOnNext(loadedUserInfo::set)
@@ -148,7 +141,13 @@ public class ClientLoginServiceImpl implements ClientLoginService {
             .flatMap(token -> centerOAuthClient.userInfo(settings.general().getCenterUrl(),
                 token.getAccessToken()))
             .onErrorMap(WebClientResponseException.class,
-                ClientLoginServiceImpl::toCenterOAuthException);
+                ClientLoginServiceImpl::toCenterOAuthException)
+            .onErrorMap(WebClientRequestException.class,
+                error -> new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "无法连接身份中心 OAuth 服务", error))
+            .onErrorMap(TimeoutException.class,
+                error -> new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,
+                    "身份中心 OAuth 请求超时", error));
     }
 
     private Mono<ClientRuntimeSettings> runtimeSettings(String externalUrl) {

@@ -1,8 +1,12 @@
 package site.muyin.sso.service.impl;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.Set;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.User;
 import run.halo.app.core.user.service.UserService;
@@ -13,9 +17,12 @@ import site.muyin.sso.model.oauth.OAuthUserInfoResponse;
 import site.muyin.sso.scheme.SsoUserBinding;
 import site.muyin.sso.service.SsoLocalUserProvisioningService;
 import site.muyin.sso.service.SsoRoleGrantService;
+import site.muyin.sso.userbinding.SsoLocalUsername;
 
 @Service
 public class SsoLocalUserProvisioningServiceImpl implements SsoLocalUserProvisioningService {
+
+    static final String SSO_SUBJECT_ANNOTATION = "sso.muyin.site/subject";
 
     private final ReactiveExtensionClient reactiveExtensionClient;
     private final UserService userService;
@@ -35,7 +42,8 @@ public class SsoLocalUserProvisioningServiceImpl implements SsoLocalUserProvisio
         var username = binding.getLocalUsername();
         var roles = localRoles == null ? Set.<String>of() : Set.copyOf(localRoles);
         return reactiveExtensionClient.fetch(User.class, username)
-            .flatMap(existing -> updateExistingUser(existing, userInfo, roles, syncProfile))
+            .flatMap(existing -> claimOrRequireOwnedUser(binding, existing)
+                .flatMap(owned -> updateExistingUser(owned, userInfo, roles, syncProfile)))
             .switchIfEmpty(Mono.defer(() -> createUser(binding, userInfo, roles)));
     }
 
@@ -68,10 +76,13 @@ public class SsoLocalUserProvisioningServiceImpl implements SsoLocalUserProvisio
         var user = new User();
         user.setMetadata(new Metadata());
         user.getMetadata().setName(binding.getLocalUsername());
+        user.getMetadata().setAnnotations(new HashMap<>());
+        user.getMetadata().getAnnotations().put(SSO_SUBJECT_ANNOTATION, binding.getSubject());
         user.setSpec(new User.UserSpec());
         applyProfile(user, userInfo);
         user.getSpec().setRegisteredAt(Instant.now());
-        user.getSpec().setEmailVerified(true);
+        // The current UserInfo contract does not carry a verified-email claim, so fail closed.
+        user.getSpec().setEmailVerified(false);
         return user;
     }
 
@@ -95,5 +106,22 @@ public class SsoLocalUserProvisioningServiceImpl implements SsoLocalUserProvisio
             return userInfo.getPreferredUsername();
         }
         return userInfo.getSub();
+    }
+
+    private Mono<User> claimOrRequireOwnedUser(SsoUserBinding binding, User user) {
+        var annotations = new HashMap<>(Optional.ofNullable(user.getMetadata().getAnnotations())
+            .orElseGet(HashMap::new));
+        var owner = annotations.get(SSO_SUBJECT_ANNOTATION);
+        if (binding.getSubject().equals(owner)) {
+            return Mono.just(user);
+        }
+        if (owner != null || SsoLocalUsername.belongsToSubject(
+            binding.getLocalUsername(), binding.getSubject())) {
+            return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT,
+                "SSO 本地账号已存在且不属于当前中心用户"));
+        }
+        annotations.put(SSO_SUBJECT_ANNOTATION, binding.getSubject());
+        user.getMetadata().setAnnotations(annotations);
+        return reactiveExtensionClient.update(user);
     }
 }

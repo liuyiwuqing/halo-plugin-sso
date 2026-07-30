@@ -10,12 +10,14 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import site.muyin.sso.service.OAuthAuthorizationService;
+import site.muyin.sso.model.oauth.OAuthTokenResponse;
 
 class OAuthRoutesTest {
 
@@ -99,6 +101,42 @@ class OAuthRoutesTest {
                 .contains("当前账号邮箱未验证，不能跨站登录")
                 .contains("/uc/profile")
                 .contains("重新尝试登录"));
+    }
+
+    @Test
+    void preventsTokenResponsesFromBeingCached() {
+        var authorizationService = mock(OAuthAuthorizationService.class);
+        when(authorizationService.token(any()))
+            .thenReturn(Mono.just(OAuthTokenResponse.builder()
+                .accessToken("access-001")
+                .tokenType("Bearer")
+                .expiresIn(900)
+                .build()));
+
+        webClient(authorizationService)
+            .post()
+            .uri("/token")
+            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+            .bodyValue("grant_type=authorization_code&code=code-001"
+                + "&redirect_uri=https%3A%2F%2Fb.example.com%2Fcallback"
+                + "&client_id=site-b&client_secret=secret&code_verifier=verifier")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().valueEquals(HttpHeaders.CACHE_CONTROL, "no-store")
+            .expectHeader().valueEquals(HttpHeaders.PRAGMA, "no-cache");
+    }
+
+    @Test
+    void rejectsBackslashBasedExternalNoticeReturnTarget() {
+        webClient(mock(OAuthAuthorizationService.class))
+            .get()
+            .uri("/notice?return_to=%2F%5Cevil.example")
+            .exchange()
+            .expectStatus().isForbidden()
+            .expectBody(String.class)
+            .value(body -> assertThat(body)
+                .contains("href=\"/login\"")
+                .doesNotContain("evil.example"));
     }
 
     private static WebTestClient webClient(OAuthAuthorizationService authorizationService) {

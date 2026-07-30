@@ -10,6 +10,10 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +27,7 @@ import run.halo.app.plugin.ReactiveSettingFetcher;
 import site.muyin.sso.client.ClientIdGenerator;
 import site.muyin.sso.client.ClientSecretGenerator;
 import site.muyin.sso.client.ClientSecretHasher;
+import site.muyin.sso.client.ClientSecretVerificationBusyException;
 import site.muyin.sso.client.SsoClientName;
 import site.muyin.sso.model.CreateSsoClientRequest;
 import site.muyin.sso.scheme.SsoClient;
@@ -215,6 +220,92 @@ class SsoClientServiceImplTest {
         assertThatThrownBy(() -> service.createWithRX(request).block())
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("HTTPS");
+    }
+
+    @Test
+    void verifiesClientSecretOutsideTheCallingThread() {
+        var reactiveExtensionClient = mock(ReactiveExtensionClient.class);
+        var clientSecretHasher = mock(ClientSecretHasher.class);
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var service = new SsoClientServiceImpl(
+            reactiveExtensionClient,
+            new ClientSecretGenerator(),
+            clientSecretHasher,
+            settingFetcher,
+            new ClientIdGenerator()
+        );
+        var clientId = "site-b";
+        var client = new SsoClient()
+            .setClientId(clientId)
+            .setClientSecretHash("stored-hash")
+            .setEnabled(true);
+        var verificationThread = new AtomicReference<Thread>();
+
+        when(reactiveExtensionClient.fetch(SsoClient.class,
+            SsoClientName.fromClientId(clientId))).thenReturn(Mono.just(client));
+        when(clientSecretHasher.matches("candidate-secret", "stored-hash"))
+            .thenAnswer(invocation -> {
+                verificationThread.set(Thread.currentThread());
+                return true;
+            });
+
+        var callingThread = Thread.currentThread();
+        var valid = service.verifySecretWithRX(clientId, "candidate-secret").block();
+
+        assertThat(valid).isTrue();
+        assertThat(verificationThread.get()).isNotSameAs(callingThread);
+    }
+
+    @Test
+    void rejectsConcurrentSecretVerificationAndReleasesPermit() throws Exception {
+        var reactiveExtensionClient = mock(ReactiveExtensionClient.class);
+        var clientSecretHasher = mock(ClientSecretHasher.class);
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var service = new SsoClientServiceImpl(
+            reactiveExtensionClient,
+            new ClientSecretGenerator(),
+            clientSecretHasher,
+            settingFetcher,
+            new ClientIdGenerator(),
+            1
+        );
+        var clientId = "site-b";
+        var client = new SsoClient()
+            .setClientId(clientId)
+            .setClientSecretHash("stored-hash")
+            .setEnabled(true);
+        var verificationStarted = new CountDownLatch(1);
+        var allowVerificationToFinish = new CountDownLatch(1);
+        var invocationCount = new AtomicInteger();
+
+        when(reactiveExtensionClient.fetch(SsoClient.class,
+            SsoClientName.fromClientId(clientId))).thenReturn(Mono.just(client));
+        when(clientSecretHasher.matches("candidate-secret", "stored-hash"))
+            .thenAnswer(invocation -> {
+                if (invocationCount.incrementAndGet() == 1) {
+                    verificationStarted.countDown();
+                    if (!allowVerificationToFinish.await(5, TimeUnit.SECONDS)) {
+                        throw new AssertionError("Timed out waiting to release secret verification");
+                    }
+                }
+                return true;
+            });
+
+        var firstVerification = service.verifySecretWithRX(clientId, "candidate-secret")
+            .toFuture();
+        assertThat(verificationStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+        try {
+            assertThatThrownBy(() -> service.verifySecretWithRX(clientId, "candidate-secret")
+                .block())
+                .isInstanceOf(ClientSecretVerificationBusyException.class);
+        } finally {
+            allowVerificationToFinish.countDown();
+        }
+
+        assertThat(firstVerification.get(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(service.verifySecretWithRX(clientId, "candidate-secret").block()).isTrue();
+        assertThat(invocationCount).hasValue(2);
     }
 
     private static SsoClientServiceImpl service(ReactiveExtensionClient reactiveExtensionClient,

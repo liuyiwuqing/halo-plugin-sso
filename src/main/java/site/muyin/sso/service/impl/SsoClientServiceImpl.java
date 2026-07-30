@@ -3,11 +3,13 @@ package site.muyin.sso.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import run.halo.app.extension.ExtensionUtil;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.Metadata;
@@ -18,6 +20,7 @@ import run.halo.app.plugin.ReactiveSettingFetcher;
 import site.muyin.sso.client.ClientIdGenerator;
 import site.muyin.sso.client.ClientSecretGenerator;
 import site.muyin.sso.client.ClientSecretHasher;
+import site.muyin.sso.client.ClientSecretVerificationBusyException;
 import site.muyin.sso.client.RedirectUriPolicy;
 import site.muyin.sso.client.SsoClientException;
 import site.muyin.sso.client.SsoClientName;
@@ -31,22 +34,37 @@ import site.muyin.sso.setting.SsoGeneralSetting;
 @Service
 public class SsoClientServiceImpl implements SsoClientService {
 
+    private static final int DEFAULT_MAX_CONCURRENT_SECRET_VERIFICATIONS = 4;
+
     private final ReactiveExtensionClient reactiveExtensionClient;
     private final ClientIdGenerator clientIdGenerator;
     private final ClientSecretGenerator clientSecretGenerator;
     private final ClientSecretHasher clientSecretHasher;
     private final ReactiveSettingFetcher settingFetcher;
+    private final Semaphore secretVerificationPermits;
     private final ObjectMapper objectMapper = Unstructured.OBJECT_MAPPER;
 
     @Autowired
     public SsoClientServiceImpl(ReactiveExtensionClient reactiveExtensionClient,
         ClientSecretGenerator clientSecretGenerator, ClientSecretHasher clientSecretHasher,
         ReactiveSettingFetcher settingFetcher, ClientIdGenerator clientIdGenerator) {
+        this(reactiveExtensionClient, clientSecretGenerator, clientSecretHasher, settingFetcher,
+            clientIdGenerator, DEFAULT_MAX_CONCURRENT_SECRET_VERIFICATIONS);
+    }
+
+    SsoClientServiceImpl(ReactiveExtensionClient reactiveExtensionClient,
+        ClientSecretGenerator clientSecretGenerator, ClientSecretHasher clientSecretHasher,
+        ReactiveSettingFetcher settingFetcher, ClientIdGenerator clientIdGenerator,
+        int maxConcurrentSecretVerifications) {
+        if (maxConcurrentSecretVerifications < 1) {
+            throw new IllegalArgumentException("maxConcurrentSecretVerifications must be positive");
+        }
         this.reactiveExtensionClient = reactiveExtensionClient;
         this.clientSecretGenerator = clientSecretGenerator;
         this.clientSecretHasher = clientSecretHasher;
         this.settingFetcher = settingFetcher;
         this.clientIdGenerator = clientIdGenerator;
+        this.secretVerificationPermits = new Semaphore(maxConcurrentSecretVerifications);
     }
 
     @Override
@@ -94,8 +112,24 @@ public class SsoClientServiceImpl implements SsoClientService {
     public Mono<Boolean> verifySecretWithRX(String clientId, String clientSecret) {
         return getByClientIdWithRX(clientId)
             .filter(client -> Boolean.TRUE.equals(client.getEnabled()))
-            .map(client -> clientSecretHasher.matches(clientSecret, client.getClientSecretHash()))
+            .flatMap(client -> verifySecret(clientSecret, client.getClientSecretHash()))
             .defaultIfEmpty(false);
+    }
+
+    private Mono<Boolean> verifySecret(String clientSecret, String clientSecretHash) {
+        return Mono.using(
+            () -> {
+                if (!secretVerificationPermits.tryAcquire()) {
+                    throw new ClientSecretVerificationBusyException();
+                }
+                return secretVerificationPermits;
+            },
+            permits -> Mono.fromCallable(() -> clientSecretHasher.matches(
+                    clientSecret, clientSecretHash))
+                .subscribeOn(Schedulers.boundedElastic()),
+            Semaphore::release,
+            true
+        );
     }
 
     @Override

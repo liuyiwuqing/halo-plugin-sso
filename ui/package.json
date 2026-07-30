@@ -3,13 +3,23 @@
   "scripts": {
     "build": "run-p type-check \"build-only {@}\" --",
     "build-only": "rsbuild build",
+    "check": "run-s type-check lint test:unit",
     "dev": "rsbuild build --watch --env-mode=development",
-    "lint:oxlint": "oxlint . --fix -D correctness --ignore-path ../.gitignore",
-    "lint:eslint": "eslint . --fix",
+    "lint:oxlint": "oxlint . -D correctness --ignore-path ../.gitignore",
+    "lint:eslint": "eslint .",
     "lint": "run-s lint:*",
     "prettier": "prettier --write src/",
     "test:unit": "vitest --passWithNoTests",
     "type-check": "vue-tsc --build"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@5": "5.0.8",
+      "immutable": "5.1.9",
+      "js-yaml": "4.3.0",
+      "postcss": "8.5.24",
+      "shell-quote": "1.9.0"
+    }
   },
   "prettier": {
     "printWidth": 100,
@@ -35,14 +45,13 @@
     "@vitest/eslint-plugin": "^1.2.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.5.1",
-    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
-    "eslint": "^9.29.0",
+    "eslint": "^10.8.0",
     "eslint-plugin-oxlint": "^0.16.12",
-    "eslint-plugin-vue": "~10.0.1",
+    "eslint-plugin-vue": "^10.10.0",
     "jiti": "^2.7.0",
     "jsdom": "^26.1.0",
-    "npm-run-all2": "^7.0.2",
+    "npm-run-all2": "^8.0.4",
     "oxlint": "^0.16.12",
     "prettier": "^3.8.3",
     "sass": "^1.89.2",

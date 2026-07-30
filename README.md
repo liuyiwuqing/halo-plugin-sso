@@ -34,6 +34,16 @@
 
 生产环境建议使用 HTTPS。开发调试时可在插件设置中临时开启“开发环境允许 HTTP localhost”，但别把这个当生产方案，真上生产这么干就有点硬莽了。
 
+### 反向代理安全边界
+
+Halo 2.25.x 默认使用原生转发头处理。插件使用服务端暴露的客户端地址限制单一请求来源创建的未完成登录状态；OAuth 回调地址和同源判断则依赖代理提供的外部协议与主机信息。生产部署必须满足：
+
+- Halo 服务端口只允许可信反向代理访问，不要把源站端口同时暴露到公网。
+- 最外层代理必须丢弃并重写客户端传入的 `Forwarded`、`X-Forwarded-For`、`X-Forwarded-Host` 和 `X-Forwarded-Proto`。
+- 多级代理只能在明确的可信代理链内传递来源地址；不要让任意客户端自行声明来源 IP。
+
+插件不会自行解析原始 `X-Forwarded-For` 作为限额键，但会使用转发的协议和主机信息识别站点外部地址。可信代理边界应由 Halo 和部署层统一建立，否则攻击者既能伪造来源绕过限额，也可能污染站点外部地址判断。
+
 ## 快速开始
 
 完整接入至少需要两个 Halo 站点：
@@ -91,9 +101,19 @@ build/libs/
 | 字段 | 示例 | 说明 |
 | --- | --- | --- |
 | 接入站名称 | 我的博客 | 控制台展示用 |
-| 站点地址 | `https://blog.example.com` | 接入站外部访问地址 |
-| Redirect URI | `https://blog.example.com/apis/public.sso.muyin.site/v1alpha1/client/callback` | 接入站回调地址 |
+| 主站地址 | `https://blog.example.com` | 用于展示和生成默认回调的主要外部访问地址 |
+| Redirect URI | `https://blog.example.com/apis/public.sso.muyin.site/v1alpha1/client/callback` | 精确回调白名单；同一站点有多个域名时逐行登记 |
 | 启用状态 | 开启 | 关闭后该接入站不能继续登录 |
+
+同一个 Halo 接入站可以让多个域名共用一组 `Client ID` 和 `Client Secret`。例如
+`https://blog.muyin.site` 与 `https://lywq.muyin.site` 指向同一站点时，在同一个接入站中登记：
+
+```text
+https://blog.muyin.site/apis/public.sso.muyin.site/v1alpha1/client/callback
+https://lywq.muyin.site/apis/public.sso.muyin.site/v1alpha1/client/callback
+```
+
+每个地址仍按协议、域名、端口和路径精确匹配；不要使用通配符。
 
 创建成功后会得到：
 
@@ -206,8 +226,11 @@ authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
 插件会在内存中短暂保存 OAuth 授权码和接入站发起登录时的 `state` 会话，这两类数据都只用于一次登录闭环，不作为长期状态保存。
 
 - 授权码有效期为 5 分钟，`/oauth/token` 成功消费后立即从内存删除；过期授权码会在签发新授权码或消费授权码时清理。
-- 未完成登录会话有效期为 10 分钟，接入站回调消费 `state` 后立即从内存删除；过期会话会在发起登录或消费 `state` 时清理。
-- 授权码和未完成登录会话均设置最大容量 `10000`，容量达到上限时会拒绝继续创建临时状态，避免异常流量导致内存持续增长。
+- 未完成登录会话有效期为 10 分钟，接入站回调消费 `state` 后立即从内存删除；过期会话按不超过 1 分钟的间隔清理。
+- 授权码和未完成登录会话的全局最大容量均为 `10000`；未完成登录会话还限制每个请求来源最多保留 `64` 个。达到上限时拒绝继续创建，避免异常流量导致内存持续增长。
+- Token 端点最多同时执行 `4` 个 PBKDF2 客户端密钥校验；超限请求不排队并返回 HTTP `429`，避免匿名请求耗尽计算资源。
+- 接入站调用身份中心 Metadata、角色、Token 和 UserInfo 接口的总请求超时均为 10 秒。
+- 登录回调及控制台角色代理遇到连接失败时返回 HTTP `502`，超时时返回 HTTP `504`；后台元数据同步失败时保留上一次成功的本地认证提供者信息。
 
 审核验证可重点查看：
 
@@ -237,7 +260,7 @@ authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
 - 按保留天数执行干跑预览或真实清理。
 - 查看最近一次清理状态和清理历史。
 
-插件设置中可以开启“自动清理过期审计日志”。默认关闭，开启后后台任务会定期按保留天数清理过期日志。
+插件设置中的“自动清理过期审计日志”默认开启，后台任务会按保留天数定期清理；如有合规留存要求，可关闭自动清理或调整保留天数。
 
 ## 公共接口
 
@@ -278,6 +301,9 @@ api-docs/openapi/v3_0/ssoApis.json
 ```text
 https://接入站域名/apis/public.sso.muyin.site/v1alpha1/client/callback
 ```
+
+如果同一接入站有多个访问域名，需要把每个实际域名对应的完整回调地址都登记到同一个接入站；
+仅登记主域名不会自动放行其他域名。
 
 ### 访问接入站 `/login` 没有跳转身份中心
 

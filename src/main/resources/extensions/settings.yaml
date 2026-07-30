@@ -127,7 +127,7 @@ spec:
           key: audit_autoCleanupEnabled
           name: autoCleanupEnabled
           label: 自动清理过期审计日志
-          value: false
+          value: true
           help: 开启后后台任务会定期清理超过保留天数的 SSO 审计日志。
         - $formkit: number
           id: audit_retentionDays

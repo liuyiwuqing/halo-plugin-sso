@@ -26,7 +26,12 @@ import {
   getModeLabel,
   type SsoAdminTabKey,
 } from '@/sso/admin-mode'
-import { buildClientCallbackUri, isAllowedSsoUrl, normalizeSiteUrl } from '@/sso/callback-uri'
+import {
+  addClientCallbackUri,
+  buildClientCallbackUri,
+  getSsoClientUrlIssues,
+  isAllowedSsoUrl,
+} from '@/sso/callback-uri'
 
 const runtimeSetting = ref<SsoGeneralRuntimeSetting>({ mode: 'center' })
 const clients = ref<SsoClient[]>([])
@@ -68,6 +73,7 @@ const form = reactive({
   clientId: '',
   displayName: '',
   siteUrl: '',
+  additionalSiteUrl: '',
   redirectUrisText: '',
   enabled: true,
 })
@@ -139,6 +145,13 @@ const canUseRecommendedClientCallbackUri = computed(
 )
 const redirectUrisContainRecommendation = computed(() =>
   parseRedirectUris().includes(recommendedClientCallbackUri.value),
+)
+const additionalClientCallbackUri = computed(() => buildClientCallbackUri(form.additionalSiteUrl))
+const canAddAdditionalClientCallbackUri = computed(
+  () => Boolean(additionalClientCallbackUri.value) && isAllowedSsoUrl(form.additionalSiteUrl),
+)
+const redirectUrisContainAdditionalCallback = computed(() =>
+  parseRedirectUris().includes(additionalClientCallbackUri.value),
 )
 const centerRoleSelectOptions = computed(() =>
   withCurrentRoleOption(centerRoleOptions.value, roleMappingForm.centerRole),
@@ -216,6 +229,7 @@ function resetClientForm() {
   form.clientId = ''
   form.displayName = ''
   form.siteUrl = ''
+  form.additionalSiteUrl = ''
   form.redirectUrisText = ''
   form.enabled = true
 }
@@ -228,6 +242,7 @@ function editClient(client: SsoClient) {
   form.clientId = client.clientId
   form.displayName = client.displayName
   form.siteUrl = client.siteUrl
+  form.additionalSiteUrl = ''
   form.redirectUrisText = (client.redirectUris || []).join('\n')
   form.enabled = client.enabled !== false
 }
@@ -243,6 +258,16 @@ function fillRecommendedClientCallbackUri() {
   }
   form.redirectUrisText = [...redirectUris, callbackUri].join('\n')
   lastAutoFilledClientCallbackUri.value = callbackUri
+}
+
+function fillAdditionalClientCallbackUri() {
+  if (!canAddAdditionalClientCallbackUri.value) {
+    return
+  }
+  form.redirectUrisText = addClientCallbackUri(parseRedirectUris(), form.additionalSiteUrl).join(
+    '\n',
+  )
+  form.additionalSiteUrl = ''
 }
 
 watch(
@@ -646,28 +671,9 @@ async function saveRoleMapping() {
 }
 
 function getClientIssues(client: SsoClient) {
-  const issues = new Set<string>()
-  const redirectUris = client.redirectUris || []
+  const issues = new Set(getSsoClientUrlIssues(client.siteUrl || '', client.redirectUris || []))
   if (client.enabled === false) {
     issues.add('接入站已停用')
-  }
-  if (!isAllowedUrl(client.siteUrl)) {
-    issues.add('站点地址需使用 HTTPS 或 localhost HTTP')
-  }
-  if (!redirectUris.length) {
-    issues.add('缺少回调地址')
-  }
-  const expectedCallbackUri = buildClientCallbackUri(client.siteUrl || '')
-  if (expectedCallbackUri && !redirectUris.includes(expectedCallbackUri)) {
-    issues.add('缺少标准 SSO 回调地址')
-  }
-  for (const uri of redirectUris) {
-    if (!isAllowedUrl(uri)) {
-      issues.add('回调地址需使用 HTTPS 或 localhost HTTP')
-    }
-    if (client.siteUrl && !uri.startsWith(normalizeSiteUrl(client.siteUrl))) {
-      issues.add('回调地址与站点地址不一致')
-    }
   }
   return Array.from(issues)
 }
@@ -813,7 +819,7 @@ onMounted(async () => {
               <span class="sso-admin-badge" :class="{ 'is-disabled': client.enabled === false }">
                 {{ client.enabled === false ? '停用' : '启用' }}
               </span>
-              <span>{{ client.siteUrl }}</span>
+              <span>主站：{{ client.siteUrl }}</span>
             </div>
             <div class="sso-admin-client__uris">
               <code v-for="uri in client.redirectUris || []" :key="uri">{{ uri }}</code>
@@ -872,13 +878,13 @@ onMounted(async () => {
             <small class="sso-admin-field-hint"> 用于后台展示，填能让人一眼认出的站点名称。 </small>
           </label>
           <label>
-            <span>站点地址</span>
+            <span>主站地址</span>
             <input v-model="form.siteUrl" autocomplete="off" placeholder="https://b.example.com" />
             <small
               class="sso-admin-field-hint"
               :class="{ 'is-error': form.siteUrl.trim() && !isAllowedUrl(form.siteUrl) }"
             >
-              填接入站的对外访问地址，线上必须 HTTPS；本地调试可用 localhost 或 127.0.0.1 的 HTTP。
+              用于后台展示并生成默认回调。线上必须 HTTPS；同一站点的其他域名可在下方继续添加。
             </small>
           </label>
           <label>
@@ -889,21 +895,19 @@ onMounted(async () => {
               placeholder="https://b.example.com/apis/public.sso.muyin.site/v1alpha1/client/callback"
             />
             <small class="sso-admin-field-hint">
-              一行一个精确地址，不能写通配符。中心站只允许登录成功后跳回白名单里的地址。
+              一行一个精确地址，支持同一站点的多个域名，但不能写通配符。
             </small>
           </label>
           <div class="sso-admin-callback-helper">
             <div>
-              <strong>推荐回调地址</strong>
-              <span v-if="recommendedClientCallbackUri">
-                由站点地址自动拼接当前插件的接入站回调路径。
-              </span>
-              <span v-else>先填写站点地址，再生成推荐回调地址。</span>
+              <strong>多域名回调</strong>
+              <span v-if="recommendedClientCallbackUri"> 主站建议回调由主站地址自动生成。 </span>
+              <span v-else>先填写主站地址，再生成建议回调。</span>
             </div>
             <code v-if="recommendedClientCallbackUri">{{ recommendedClientCallbackUri }}</code>
             <p>
-              如果接入站在反向代理后面，站点地址要填用户真实访问的公网域名；否则 redirect_uri
-              对不上，登录会被中心站拒掉。
+              同一接入站的多个公网域名可以共用 Client ID。每个域名都必须登记自己的精确回调地址，
+              中心站仍会严格校验 redirect_uri。
             </p>
             <button
               class="sso-admin-link-button"
@@ -911,8 +915,35 @@ onMounted(async () => {
               :disabled="!canUseRecommendedClientCallbackUri || redirectUrisContainRecommendation"
               @click="fillRecommendedClientCallbackUri"
             >
-              {{ redirectUrisContainRecommendation ? '已在白名单中' : '填入推荐地址' }}
+              {{ redirectUrisContainRecommendation ? '主站回调已添加' : '添加主站回调' }}
             </button>
+            <div class="sso-admin-callback-helper__additional">
+              <label>
+                <span>附加访问域名</span>
+                <input
+                  v-model="form.additionalSiteUrl"
+                  autocomplete="off"
+                  placeholder="https://lywq.muyin.site"
+                  @keydown.enter.prevent="fillAdditionalClientCallbackUri"
+                />
+              </label>
+              <button
+                class="sso-admin-link-button"
+                type="button"
+                :disabled="
+                  !canAddAdditionalClientCallbackUri || redirectUrisContainAdditionalCallback
+                "
+                @click="fillAdditionalClientCallbackUri"
+              >
+                {{ redirectUrisContainAdditionalCallback ? '该域名已添加' : '添加域名回调' }}
+              </button>
+            </div>
+            <small
+              v-if="form.additionalSiteUrl.trim() && !canAddAdditionalClientCallbackUri"
+              class="sso-admin-field-hint is-error"
+            >
+              附加域名需使用 HTTPS，或使用 localhost / 127.0.0.1 的 HTTP。
+            </small>
           </div>
           <label class="sso-admin-check">
             <input v-model="form.enabled" type="checkbox" />
@@ -2160,6 +2191,22 @@ onMounted(async () => {
   }
 }
 
+.sso-admin-callback-helper__additional {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+
+  label {
+    display: grid;
+    gap: 6px;
+  }
+
+  .sso-admin-link-button {
+    min-height: 38px;
+  }
+}
+
 .sso-admin-link-button {
   width: fit-content;
   min-height: 30px;
@@ -2320,6 +2367,10 @@ onMounted(async () => {
   .sso-admin-audit-cleanup__header {
     align-items: flex-start;
     display: grid;
+  }
+
+  .sso-admin-callback-helper__additional {
+    grid-template-columns: 1fr;
   }
 }
 </style>

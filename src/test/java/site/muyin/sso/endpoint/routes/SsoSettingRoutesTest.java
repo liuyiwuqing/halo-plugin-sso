@@ -6,9 +6,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.plugin.ReactiveSettingFetcher;
@@ -111,6 +119,75 @@ class SsoSettingRoutesTest {
             .expectStatus().isBadRequest();
 
         verifyNoInteractions(centerRoleClient);
+    }
+
+    @Test
+    void returnsGatewayTimeoutWhenCenterRolesRequestTimesOut() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var centerRoleClient = mock(CenterRoleClient.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        setting.setCenterUrl("https://auth.example.com/");
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        when(centerRoleClient.listRoles("https://auth.example.com/"))
+            .thenReturn(Flux.<SsoPublicRole>error(
+                new TimeoutException("upstream timed out")));
+
+        webClient(settingFetcher, centerRoleClient)
+            .get()
+            .uri("/center-roles")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
+    }
+
+    @Test
+    void returnsBadGatewayWhenCenterRolesCannotBeReached() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var centerRoleClient = mock(CenterRoleClient.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        setting.setCenterUrl("https://auth.example.com/");
+        var requestError = new WebClientRequestException(
+            new IOException("connection refused"),
+            HttpMethod.GET,
+            URI.create("https://auth.example.com/roles"),
+            HttpHeaders.EMPTY
+        );
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        when(centerRoleClient.listRoles("https://auth.example.com/"))
+            .thenReturn(Flux.<SsoPublicRole>error(requestError));
+
+        webClient(settingFetcher, centerRoleClient)
+            .get()
+            .uri("/center-roles")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    void returnsBadGatewayWhenCenterRolesEndpointRejectsRequest() {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var centerRoleClient = mock(CenterRoleClient.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        setting.setCenterUrl("https://auth.example.com/");
+        var responseError = WebClientResponseException.create(
+            503, "Service Unavailable", HttpHeaders.EMPTY, new byte[0], null);
+
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        when(centerRoleClient.listRoles("https://auth.example.com/"))
+            .thenReturn(Flux.<SsoPublicRole>error(responseError));
+
+        webClient(settingFetcher, centerRoleClient)
+            .get()
+            .uri("/center-roles")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY);
     }
 
     private static WebTestClient webClient(ReactiveSettingFetcher settingFetcher,

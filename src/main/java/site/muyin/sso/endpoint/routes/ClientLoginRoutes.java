@@ -5,6 +5,7 @@ import static site.muyin.sso.endpoint.SsoPublicEndpoint.PUBLIC_TAG;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import java.net.URI;
+import java.util.Optional;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -51,7 +52,7 @@ public class ClientLoginRoutes {
 
     private Mono<ServerResponse> login(ServerRequest request) {
         return clientLoginService.startLogin(returnUrl(request),
-                externalUrl(request))
+                externalUrl(request), requesterKey(request))
             .flatMap(result -> ServerResponse.temporaryRedirect(URI.create(result.getRedirectUri()))
                 .build());
     }
@@ -75,6 +76,16 @@ public class ClientLoginRoutes {
         return request.queryParam("return_url")
             .orElseGet(() -> ReturnUrlPolicy.safeLoginStartReturnUrl(
                 request.exchange().getRequest()));
+    }
+
+    private static String requesterKey(ServerRequest request) {
+        // Halo enables native forwarded-header handling. Use the address normalized by the server
+        // instead of parsing client-controlled X-Forwarded-For values in the plugin.
+        return Optional.ofNullable(request.exchange().getRequest().getRemoteAddress())
+            .map(address -> address.getAddress())
+            .map(address -> address.getHostAddress())
+            .filter(address -> !address.isBlank())
+            .orElse("unknown");
     }
 
 }

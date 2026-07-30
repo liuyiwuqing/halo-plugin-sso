@@ -99,7 +99,10 @@ public class OAuthRoutes {
                 .codeVerifier(formData.getFirst("code_verifier"))
                 .build())
             .flatMap(oauthAuthorizationService::token)
-            .flatMap(response -> ServerResponse.ok().bodyValue(response));
+            .flatMap(response -> ServerResponse.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .bodyValue(response));
     }
 
     private Mono<ServerResponse> userinfo(ServerRequest request) {

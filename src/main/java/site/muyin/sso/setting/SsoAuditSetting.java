@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class SsoAuditSetting {
 
-    private Boolean autoCleanupEnabled = false;
+    private Boolean autoCleanupEnabled = true;
 
     private Integer retentionDays = 90;
 }

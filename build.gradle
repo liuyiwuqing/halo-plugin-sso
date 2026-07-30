@@ -4,7 +4,7 @@ plugins {
     id "run.halo.plugin.devtools" version "0.8.0"
 }
 
-group 'site.muyin.sso'
+group = 'site.muyin.sso'
 
 repositories {
     mavenCentral()
@@ -89,4 +89,3 @@ haloPlugin {
         }
     }
 }
-

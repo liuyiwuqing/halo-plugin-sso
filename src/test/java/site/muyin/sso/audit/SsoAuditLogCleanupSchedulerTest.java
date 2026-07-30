@@ -23,6 +23,11 @@ import site.muyin.sso.setting.SsoAuditSetting;
 class SsoAuditLogCleanupSchedulerTest {
 
     @Test
+    void enablesAuditCleanupByDefault() {
+        assertThat(new SsoAuditSetting().getAutoCleanupEnabled()).isTrue();
+    }
+
+    @Test
     void skipsCleanupWhenAutoCleanupDisabled() {
         var settingFetcher = mock(ReactiveSettingFetcher.class);
         var auditLogService = mock(SsoAuditLogService.class);

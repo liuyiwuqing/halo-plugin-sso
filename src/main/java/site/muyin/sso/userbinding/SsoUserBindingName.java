@@ -12,6 +12,10 @@ public final class SsoUserBindingName {
     }
 
     public static String fromSubject(String subject) {
+        return SsoUserBinding.NAME_PREFIX + suffixFromSubject(subject);
+    }
+
+    static String suffixFromSubject(String subject) {
         if (subject == null || subject.isBlank()) {
             throw new IllegalArgumentException("subject must not be blank");
         }
@@ -22,7 +26,7 @@ public final class SsoUserBindingName {
                 .toLowerCase()
                 .replace('_', '-')
                 .substring(0, 32);
-            return SsoUserBinding.NAME_PREFIX + suffix;
+            return suffix;
         } catch (NoSuchAlgorithmException error) {
             throw new IllegalStateException("SHA-256 is not available", error);
         }

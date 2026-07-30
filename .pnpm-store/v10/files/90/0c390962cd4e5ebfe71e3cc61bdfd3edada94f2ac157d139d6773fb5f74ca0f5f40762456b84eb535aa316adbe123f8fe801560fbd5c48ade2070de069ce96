@@ -1,4 +1,0 @@
-export type SpaceSpacing = "xs" | "sm" | "md" | "lg";
-export type SpaceDirection = "row" | "column";
-export type SpaceAlign = "start" | "end" | "center" | "stretch";
-export declare const SpaceSpacingSize: Record<string, number>;

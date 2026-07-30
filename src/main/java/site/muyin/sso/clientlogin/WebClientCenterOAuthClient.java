@@ -1,5 +1,6 @@
 package site.muyin.sso.clientlogin;
 
+import java.time.Duration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -14,14 +15,25 @@ import site.muyin.sso.oauth.OAuthEndpointPaths;
 @Component
 public class WebClientCenterOAuthClient implements CenterOAuthClient {
 
+    private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
     private final WebClient webClient;
+    private final Duration requestTimeout;
 
     public WebClientCenterOAuthClient() {
-        this(WebClient.builder().build());
+        this(WebClient.builder().build(), DEFAULT_REQUEST_TIMEOUT);
     }
 
     WebClientCenterOAuthClient(WebClient webClient) {
+        this(webClient, DEFAULT_REQUEST_TIMEOUT);
+    }
+
+    WebClientCenterOAuthClient(WebClient webClient, Duration requestTimeout) {
+        if (requestTimeout == null || requestTimeout.isZero() || requestTimeout.isNegative()) {
+            throw new IllegalArgumentException("requestTimeout must be positive");
+        }
         this.webClient = webClient;
+        this.requestTimeout = requestTimeout;
     }
 
     @Override
@@ -36,7 +48,8 @@ public class WebClientCenterOAuthClient implements CenterOAuthClient {
                 .with("client_secret", request.getClientSecret())
                 .with("code_verifier", request.getCodeVerifier()))
             .retrieve()
-            .bodyToMono(OAuthTokenResponse.class);
+            .bodyToMono(OAuthTokenResponse.class)
+            .timeout(requestTimeout);
     }
 
     @Override
@@ -45,7 +58,8 @@ public class WebClientCenterOAuthClient implements CenterOAuthClient {
             .uri(endpoint(centerUrl, OAuthEndpointPaths.USERINFO))
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .retrieve()
-            .bodyToMono(OAuthUserInfoResponse.class);
+            .bodyToMono(OAuthUserInfoResponse.class)
+            .timeout(requestTimeout);
     }
 
     private static String endpoint(String baseUrl, String path) {

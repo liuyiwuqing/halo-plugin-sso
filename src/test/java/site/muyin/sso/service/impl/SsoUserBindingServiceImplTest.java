@@ -59,10 +59,37 @@ class SsoUserBindingServiceImplTest {
         assertThat(binding.getMetadata().getName()).isEqualTo(bindingName);
         assertThat(binding.getSubject()).isEqualTo("user-001");
         assertThat(binding.getEmail()).isEqualTo("lywq@example.com");
-        assertThat(binding.getLocalUsername()).isEqualTo("lywq");
+        assertThat(binding.getLocalUsername())
+            .startsWith("sso-")
+            .isNotEqualTo("lywq");
         assertThat(binding.getDisplayName()).isEqualTo("Lywq");
         assertThat(binding.getAvatar()).isEqualTo("https://example.com/avatar.png");
         assertThat(binding.getBoundAt()).isNotNull();
         assertThat(binding.getLastLoginAt()).isNotNull();
+    }
+
+    @Test
+    void keepsBoundLocalUsernameWhenCenterUsernameChanges() {
+        var reactiveExtensionClient = mock(ReactiveExtensionClient.class);
+        var service = new SsoUserBindingServiceImpl(reactiveExtensionClient);
+        var bindingName = SsoUserBindingName.fromSubject("user-001");
+        var existing = new SsoUserBinding()
+            .setSubject("user-001")
+            .setEmail("old@example.com")
+            .setLocalUsername("existing-local-user");
+
+        when(reactiveExtensionClient.fetch(SsoUserBinding.class, bindingName))
+            .thenReturn(Mono.just(existing));
+        when(reactiveExtensionClient.update(any(Unstructured.class)))
+            .thenAnswer(invocation -> Mono.just(invocation.getArgument(0, Unstructured.class)));
+
+        var binding = service.bindOrUpdateWithRX(OAuthUserInfoResponse.builder()
+            .sub("user-001")
+            .preferredUsername("renamed-center-user")
+            .email("new@example.com")
+            .build()).block();
+
+        assertThat(binding.getLocalUsername()).isEqualTo("existing-local-user");
+        assertThat(binding.getEmail()).isEqualTo("new@example.com");
     }
 }

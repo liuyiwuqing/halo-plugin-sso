@@ -1,7 +1,10 @@
 package site.muyin.sso.center;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -40,5 +43,15 @@ class WebClientCenterMetadataClientTest {
         assertThat(metadata.description()).isEqualTo("使用木因账号登录");
         assertThat(metadata.logo()).isEqualTo("https://auth.muyin.site/upload/auth-logo.png");
         assertThat(metadata.website()).isEqualTo("https://auth.muyin.site");
+    }
+
+    @Test
+    void timesOutWhenCenterMetadataEndpointDoesNotRespond() {
+        var client = new WebClientCenterMetadataClient(WebClient.builder()
+            .exchangeFunction(request -> Mono.never())
+            .build(), Duration.ofMillis(25));
+
+        assertThatThrownBy(() -> client.getMetadata("https://auth.muyin.site/").block())
+            .hasRootCauseInstanceOf(TimeoutException.class);
     }
 }
