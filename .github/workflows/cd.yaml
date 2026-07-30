@@ -30,4 +30,4 @@ jobs:
       node-version: 24
       java-version: 21
       skip-appstore-release: false
-      app-id: app-od18rwfb
+      app-id: app-1dondjfv
