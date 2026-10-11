@@ -18,4 +18,6 @@ public class ClientLoginCallbackResult {
     boolean localUserCreated;
 
     String returnUrl;
+
+    boolean rememberMe;
 }

@@ -19,6 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -53,8 +56,10 @@ import site.muyin.sso.userbinding.SsoLocalUsername;
 
 class ClientLoginServiceImplTest {
 
-    @Test
-    void startsClientLoginAndExchangesCallbackForUserInfo() {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(booleans = {true, false})
+    void startsClientLoginAndExchangesCallbackForUserInfo(Boolean rememberMe) {
         var settingFetcher = mock(ReactiveSettingFetcher.class);
         var centerOAuthClient = mock(CenterOAuthClient.class);
         var reactiveExtensionClient = mock(ReactiveExtensionClient.class);
@@ -79,7 +84,10 @@ class ClientLoginServiceImplTest {
         when(settingFetcher.fetch("general", SsoGeneralSetting.class))
             .thenReturn(Mono.just(generalSetting));
 
-        var startResult = service.startLogin("/posts/1", "https://b.example.com/").block();
+        var startResult = rememberMe == null
+            ? service.startLogin("/posts/1", "https://b.example.com/").block()
+            : service.startLogin("/posts/1", "https://b.example.com/", "192.0.2.10",
+                rememberMe).block();
         var authorizeParams = UriComponentsBuilder
             .fromUri(URI.create(startResult.getRedirectUri()))
             .build()
@@ -131,6 +139,7 @@ class ClientLoginServiceImplTest {
             "https://b.example.com/").block();
 
         assertThat(callbackResult.getReturnUrl()).isEqualTo("/posts/1");
+        assertThat(callbackResult.isRememberMe()).isEqualTo(Boolean.TRUE.equals(rememberMe));
         assertThat(callbackResult.getLocalUsername()).isEqualTo(managedLocalUsername);
         assertThat(callbackResult.getGrantedRoles()).containsExactly("guest");
         assertThat(callbackResult.isLocalUserCreated()).isTrue();
@@ -138,6 +147,11 @@ class ClientLoginServiceImplTest {
         assertThat(callbackResult.getUserInfo().getPreferredUsername()).isEqualTo("lywq");
         assertThat(callbackResult.getUserInfo().getEmail()).isEqualTo("lywq@example.com");
         verify(reactiveExtensionClient, never()).fetch(User.class, "lywq");
+
+        assertThatThrownBy(() -> service.handleCallback("code-001", state,
+            "https://b.example.com/").block())
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("已使用");
     }
 
     @Test

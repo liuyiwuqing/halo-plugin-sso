@@ -5,5 +5,9 @@ import reactor.core.publisher.Mono;
 
 public interface SsoLoginSessionService {
 
-    Mono<Void> login(ServerWebExchange exchange, String username);
+    Mono<Void> login(ServerWebExchange exchange, String username, boolean rememberMe);
+
+    default Mono<Void> login(ServerWebExchange exchange, String username) {
+        return login(exchange, username, false);
+    }
 }

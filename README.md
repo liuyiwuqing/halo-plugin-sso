@@ -211,6 +211,25 @@ metadata.name: muyin-sso
 authenticationUrl: /apis/public.sso.muyin.site/v1alpha1/client/login
 ```
 
+### 记住接入站登录状态
+
+在接入站登录页勾选“记住我”后，再选择“统一身份认证”。插件会把本次选择绑定到
+一次性 SSO `state`，回调成功后交给 Halo 的原生 Remember Me 机制处理。即使跨站回调时
+原来的临时 WebSession 已失效，仍可保留这次选择；未勾选时保持普通会话登录。
+
+登录保持时长由接入站 Halo 的 Remember Me 配置决定（Halo 2.25.x 默认 14 天），
+不会受用于换取用户信息的 15 分钟 OAuth Token 有效期限制。退出登录、撤销登录设备、
+清除 Cookie 或凭据过期后，需要重新登录。
+
+自定义登录入口可显式传入 `remember-me=true`：
+
+```text
+/apis/public.sso.muyin.site/v1alpha1/client/login?return_url=/archives/demo&remember-me=true
+```
+
+未传入时默认不记住；回调中的同名参数不会覆盖发起登录时保存的选择。
+升级插件后，已有普通登录会话需重新登录并勾选该选项，才会建立记住登录凭据。
+
 ### 指定登录后返回地址
 
 接入站登录入口支持 `return_url` 参数：

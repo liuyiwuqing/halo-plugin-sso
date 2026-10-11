@@ -8,6 +8,8 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
@@ -18,6 +20,25 @@ import site.muyin.sso.oauth.OAuthEndpointPaths;
 import site.muyin.sso.setting.SsoGeneralSetting;
 
 class ClientModeLoginRedirectFilterTest {
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void preservesExplicitRememberMeChoiceWhenRedirectingToSso(boolean rememberMe) {
+        var settingFetcher = mock(ReactiveSettingFetcher.class);
+        var setting = new SsoGeneralSetting();
+        setting.setMode("client");
+        when(settingFetcher.fetch("general", SsoGeneralSetting.class))
+            .thenReturn(Mono.just(setting));
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get(
+            "/login?remember-me=" + rememberMe));
+
+        new ClientModeLoginRedirectFilter(settingFetcher)
+            .filter(exchange, filteredExchange -> Mono.empty()).block();
+
+        var params = UriComponentsBuilder
+            .fromUri(exchange.getResponse().getHeaders().getLocation()).build().getQueryParams();
+        assertThat(params.getFirst("remember-me")).isEqualTo(Boolean.toString(rememberMe));
+    }
 
     @Test
     void redirectsThemeLoginToClientSsoLoginInClientMode() {

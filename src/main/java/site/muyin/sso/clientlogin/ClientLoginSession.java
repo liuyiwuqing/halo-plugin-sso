@@ -7,6 +7,7 @@ public record ClientLoginSession(
     String codeVerifier,
     String codeChallenge,
     String returnUrl,
-    Instant expiresAt
+    Instant expiresAt,
+    boolean rememberMe
 ) {
 }

@@ -1,6 +1,7 @@
 package site.muyin.sso.endpoint.routes;
 
 import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
+import static site.muyin.sso.core.SsoConstants.REMEMBER_ME_PARAMETER;
 import static site.muyin.sso.endpoint.SsoPublicEndpoint.PUBLIC_TAG;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -38,7 +39,10 @@ public class ClientLoginRoutes {
                 .parameter(parameterBuilder().name("return_url").in(ParameterIn.QUERY)
                     .required(false).implementation(String.class))
                 .parameter(parameterBuilder().name("redirect_uri").in(ParameterIn.QUERY)
-                    .required(false).implementation(String.class)))
+                    .required(false).implementation(String.class))
+                .parameter(parameterBuilder().name(REMEMBER_ME_PARAMETER).in(ParameterIn.QUERY)
+                    .description("是否记住本站登录状态，默认 false")
+                    .required(false).implementation(Boolean.class)))
             .GET("/callback", this::callback, builder -> builder
                 .operationId("clientSsoCallback")
                 .description("接入站处理 SSO 回调并建立本地登录态")
@@ -52,7 +56,8 @@ public class ClientLoginRoutes {
 
     private Mono<ServerResponse> login(ServerRequest request) {
         return clientLoginService.startLogin(returnUrl(request),
-                externalUrl(request), requesterKey(request))
+                externalUrl(request), requesterKey(request),
+                Boolean.parseBoolean(request.queryParam(REMEMBER_ME_PARAMETER).orElse("false")))
             .flatMap(result -> ServerResponse.temporaryRedirect(URI.create(result.getRedirectUri()))
                 .build());
     }
@@ -63,7 +68,7 @@ public class ClientLoginRoutes {
                 request.queryParam("state").orElse(null),
                 externalUrl(request))
             .flatMap(result -> loginSessionService.login(request.exchange(),
-                    result.getLocalUsername())
+                    result.getLocalUsername(), result.isRememberMe())
                 .then(ServerResponse.temporaryRedirect(URI.create(result.getReturnUrl()))
                     .build()));
     }

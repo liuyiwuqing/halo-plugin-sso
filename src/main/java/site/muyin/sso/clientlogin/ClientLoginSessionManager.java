@@ -63,6 +63,11 @@ public class ClientLoginSessionManager {
     }
 
     public synchronized ClientLoginSession start(String returnUrl, String requesterKey) {
+        return start(returnUrl, requesterKey, false);
+    }
+
+    public synchronized ClientLoginSession start(String returnUrl, String requesterKey,
+        boolean rememberMe) {
         var now = clock.instant();
         var normalizedRequesterKey = normalizeRequesterKey(requesterKey);
         cleanupExpiredIfDue(now);
@@ -76,7 +81,8 @@ public class ClientLoginSessionManager {
                 codeVerifier,
                 Pkce.challengeS256(codeVerifier),
                 returnUrl,
-                expiresAt
+                expiresAt,
+                rememberMe
             );
             if (sessions.putIfAbsent(state, session) == null) {
                 sessionRequesters.put(state, normalizedRequesterKey);

@@ -26,10 +26,34 @@ class ClientLoginSessionManagerTest {
 
         var consumed = manager.consume(session.state());
         assertThat(consumed.returnUrl()).isEqualTo("/posts/1");
+        assertThat(consumed.rememberMe()).isFalse();
 
         assertThatThrownBy(() -> manager.consume(session.state()))
             .isInstanceOf(ClientLoginException.class)
             .hasMessageContaining("已使用");
+    }
+
+    @Test
+    void keepsRememberMeChoiceIsolatedForEachOneTimeLoginState() {
+        var manager = new ClientLoginSessionManager();
+
+        var remembered = manager.start("/posts/1", "192.0.2.10", true);
+        var temporary = manager.start("/posts/2", "192.0.2.10", false);
+
+        assertThat(manager.consume(temporary.state()).rememberMe()).isFalse();
+        assertThat(manager.consume(remembered.state()).rememberMe()).isTrue();
+        assertThatThrownBy(() -> manager.consume(remembered.state()))
+            .isInstanceOf(ClientLoginException.class)
+            .hasMessageContaining("已使用");
+    }
+
+    @Test
+    void defaultsToTemporaryLoginWhenOnlyRequesterIsProvided() {
+        var manager = new ClientLoginSessionManager();
+
+        var session = manager.start("/posts/1", "192.0.2.10");
+
+        assertThat(manager.consume(session.state()).rememberMe()).isFalse();
     }
 
     @Test

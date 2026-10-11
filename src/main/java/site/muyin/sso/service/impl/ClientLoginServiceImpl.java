@@ -58,11 +58,11 @@ public class ClientLoginServiceImpl implements ClientLoginService {
 
     @Override
     public Mono<ClientLoginStartResult> startLogin(String returnUrl, String externalUrl,
-        String requesterKey) {
+        String requesterKey, boolean rememberMe) {
         var safeReturnUrl = sanitizeReturnUrl(returnUrl);
         return runtimeSettings(externalUrl)
             .map(settings -> {
-                var session = sessionManager.start(safeReturnUrl, requesterKey);
+                var session = sessionManager.start(safeReturnUrl, requesterKey, rememberMe);
                 var callbackUri = callbackUri(settings.externalUrl());
                 var redirectUri = UriComponentsBuilder
                     .fromUriString(endpoint(settings.general().getCenterUrl(),
@@ -112,6 +112,7 @@ public class ClientLoginServiceImpl implements ClientLoginService {
                                     .grantedRoles(provisioning.getGrantedRoles())
                                     .localUserCreated(provisioning.isCreated())
                                     .returnUrl(session.returnUrl())
+                                    .rememberMe(session.rememberMe())
                                     .build())
                                 .flatMap(result -> safeAudit(auditLogService.recordLoginSuccess(
                                     settings.general().getClientId(),

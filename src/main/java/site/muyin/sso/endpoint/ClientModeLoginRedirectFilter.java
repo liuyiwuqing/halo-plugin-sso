@@ -11,6 +11,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import run.halo.app.plugin.ReactiveSettingFetcher;
 import run.halo.app.security.AdditionalWebFilter;
+import site.muyin.sso.core.SsoConstants;
 import site.muyin.sso.oauth.OAuthEndpointPaths;
 import site.muyin.sso.setting.SsoGeneralSetting;
 
@@ -61,9 +62,16 @@ public class ClientModeLoginRedirectFilter implements AdditionalWebFilter {
     }
 
     private static URI clientLoginUri(ServerWebExchange exchange) {
-        return UriComponentsBuilder.fromPath(OAuthEndpointPaths.CLIENT_LOGIN)
+        var builder = UriComponentsBuilder.fromPath(OAuthEndpointPaths.CLIENT_LOGIN)
             .queryParam("return_url", ReturnUrlPolicy.safeRedirectUriReturnUrl(
-                exchange.getRequest()))
+                exchange.getRequest()));
+        var rememberMe = exchange.getRequest().getQueryParams()
+            .getFirst(SsoConstants.REMEMBER_ME_PARAMETER);
+        if (rememberMe != null) {
+            builder.queryParam(SsoConstants.REMEMBER_ME_PARAMETER,
+                Boolean.parseBoolean(rememberMe));
+        }
+        return builder
             .encode()
             .build()
             .toUri();
